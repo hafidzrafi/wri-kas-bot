@@ -1,16 +1,6 @@
-"""Tier 1: Feature Coverage — Feature 10: Google Sheets Client (sheets.py)."""
+"""Tier 1: Feature Coverage: Feature 10: Google Sheets Client (sheets.py)."""
 
-import pytest
-
-try:
-    from wri_kas_bot.sheets import GoogleSheetsClient
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    GoogleSheetsClient = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.sheets not implemented yet")
+from wri_kas_bot.sheets import GoogleSheetsClient
 
 
 def test_update_payment_month_returns_coordinate(mock_sheets_client):

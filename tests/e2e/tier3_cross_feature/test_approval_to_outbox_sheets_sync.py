@@ -1,4 +1,4 @@
-"""Tier 3: Cross-Feature Interactions — Approval to Outbox & Google Sheets Sync."""
+"""Tier 3: Cross-Feature Interactions: Approval to Outbox & Google Sheets Sync."""
 
 from unittest.mock import MagicMock
 

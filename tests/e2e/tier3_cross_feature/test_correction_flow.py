@@ -1,4 +1,4 @@
-"""Tier 3: Cross-Feature Interactions — Transaction Correction Flow (/koreksi)."""
+"""Tier 3: Cross-Feature Interactions: Transaction Correction Flow (/koreksi)."""
 
 from unittest.mock import AsyncMock
 

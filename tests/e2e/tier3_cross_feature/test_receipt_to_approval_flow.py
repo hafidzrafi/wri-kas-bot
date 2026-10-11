@@ -1,4 +1,4 @@
-"""Tier 3: Cross-Feature Interactions — Receipt Ingestion to Treasurer Approval Flow."""
+"""Tier 3: Cross-Feature Interactions: Receipt Ingestion to Treasurer Approval Flow."""
 
 import base64
 from unittest.mock import AsyncMock

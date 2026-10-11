@@ -1,19 +1,8 @@
-"""Tier 1: Feature Coverage — Feature 5: Atomic Undo & Koreksi Engine (undo.py)."""
+"""Tier 1: Feature Coverage: Feature 5: Atomic Undo & Koreksi Engine (undo.py)."""
 
 import sqlite3
 
-import pytest
-
-try:
-    from wri_kas_bot.undo import UndoResult, execute_undo
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    UndoResult = None
-    execute_undo = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.undo not implemented yet")
+from wri_kas_bot.undo import execute_undo
 
 
 def test_execute_undo_reverts_balance(initialized_db):

@@ -1,4 +1,4 @@
-"""Tier 2: Boundary & Corner Cases — Webhook Ingestion & Evolution API (models.py, app.py)."""
+"""Tier 2: Boundary & Corner Cases: Webhook Ingestion & Evolution API (models.py, app.py)."""
 
 import pytest
 from httpx import ASGITransport, AsyncClient

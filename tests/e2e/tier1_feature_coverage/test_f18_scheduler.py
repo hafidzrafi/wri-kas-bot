@@ -1,4 +1,4 @@
-"""Tier 1: Feature Coverage — Feature 18: Monthly Billing Blast (scheduler.py)."""
+"""Tier 1: Feature Coverage: Feature 18: Monthly Billing Blast (scheduler.py)."""
 
 import datetime
 from unittest.mock import AsyncMock

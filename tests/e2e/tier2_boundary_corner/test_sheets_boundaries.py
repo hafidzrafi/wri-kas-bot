@@ -1,16 +1,6 @@
-"""Tier 2: Boundary & Corner Cases — Google Sheets Integration (sheets.py)."""
+"""Tier 2: Boundary & Corner Cases: Google Sheets Integration (sheets.py)."""
 
-import pytest
-
-try:
-    from wri_kas_bot.sheets import GoogleSheetsClient
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    GoogleSheetsClient = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.sheets not implemented yet")
+from wri_kas_bot.sheets import GoogleSheetsClient
 
 
 def test_bottom_up_scanning_dense_spacer_block(mock_sheets_client):

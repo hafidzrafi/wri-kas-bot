@@ -1,4 +1,4 @@
-"""Tier 2: Boundary & Corner Cases — Standalone Reconciler (reconcile.py)."""
+"""Tier 2: Boundary & Corner Cases: Standalone Reconciler (reconcile.py)."""
 
 from wri_kas_bot import reconcile
 from wri_kas_bot.database import Database

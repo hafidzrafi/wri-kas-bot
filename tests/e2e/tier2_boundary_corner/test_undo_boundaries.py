@@ -1,26 +1,15 @@
-"""Tier 2: Boundary & Corner Cases — Undo & Rollback Engine (undo.py)."""
+"""Tier 2: Boundary & Corner Cases: Undo & Rollback Engine (undo.py)."""
 
 import sqlite3
 
 import pytest
 
-try:
-    from wri_kas_bot.undo import (
-        InvalidTransactionStateError,
-        TransactionNotFoundError,
-        UndoError,
-        execute_undo,
-    )
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    execute_undo = None
-    UndoError = Exception
-    InvalidTransactionStateError = Exception
-    TransactionNotFoundError = Exception
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.undo not implemented yet")
+from wri_kas_bot.undo import (
+    InvalidTransactionStateError,
+    TransactionNotFoundError,
+    UndoError,
+    execute_undo,
+)
 
 
 def test_undo_already_reverted_transaction_fails(initialized_db):

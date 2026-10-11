@@ -30,22 +30,16 @@ def run_e2e_tests(tier: str = "all", verbose: bool = False) -> int:
     if verbose:
         args.append("-v")
 
-    print("\n=======================================================")
-    print(f"🚀 Running E2E Test Suite [Tier: {tier.upper()}]")
-    print(f"📁 Target Directory: {target_path}")
-    print("=======================================================\n")
+    print(f"Running E2E tests for tier {tier.lower()} against {target_path}")
 
-    # Run pytest
     exit_code = pytest.main(args)
 
-    print("\n=======================================================")
     if exit_code == pytest.ExitCode.OK:
-        print(f"✅ E2E Suite [Tier: {tier.upper()}] Passed successfully.")
+        print(f"E2E tests for tier {tier.lower()} passed.")
     elif exit_code == pytest.ExitCode.NO_TESTS_COLLECTED:
-        print(f"⚠️  No tests collected for Tier: {tier.upper()}.")
+        print(f"No tests collected for tier {tier.lower()}.")
     else:
-        print(f"❌ E2E Suite [Tier: {tier.upper()}] Finished with exit code: {exit_code}")
-    print("=======================================================\n")
+        print(f"E2E tests for tier {tier.lower()} failed with exit code: {exit_code}")
 
     return int(exit_code)
 

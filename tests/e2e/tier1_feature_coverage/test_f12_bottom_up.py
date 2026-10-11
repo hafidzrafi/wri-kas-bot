@@ -1,16 +1,4 @@
-"""Tier 1: Feature Coverage — Feature 12: Debit_Kredit Bottom-Up Scanning (sheets.py)."""
-
-import pytest
-
-try:
-    from wri_kas_bot.sheets import GoogleSheetsClient
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    GoogleSheetsClient = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.sheets not implemented yet")
+"""Tier 1: Feature Coverage: Feature 12: Debit_Kredit Bottom-Up Scanning (sheets.py)."""
 
 
 def test_scan_skips_empty_spacer_rows(mock_sheets_client):

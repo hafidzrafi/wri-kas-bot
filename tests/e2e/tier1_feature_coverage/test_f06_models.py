@@ -1,16 +1,6 @@
-"""Tier 1: Feature Coverage — Feature 6: Evolution API Models (models.py)."""
+"""Tier 1: Feature Coverage: Feature 6: Evolution API Models (models.py)."""
 
-import pytest
-
-try:
-    from wri_kas_bot.models import WebhookPayload
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    WebhookPayload = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.models not implemented yet")
+from wri_kas_bot.models import WebhookPayload
 
 
 def test_parse_plain_text_webhook(make_webhook_payload):

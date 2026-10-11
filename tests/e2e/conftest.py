@@ -177,6 +177,14 @@ def mock_evolution_api():
             status_code=201,
             json={"key": {"id": "TEST_MEDIA_MSG_ID", "fromMe": True}, "status": "PENDING"},
         )
+        respx_mock.post(url__regex=r"/chat/markMessageAsRead/.*").respond(
+            status_code=200,
+            json={"status": "success"},
+        )
+        respx_mock.post(url__regex=r"/chat/sendPresence/.*").respond(
+            status_code=200,
+            json={"status": "success"},
+        )
         yield respx_mock
 
 
@@ -237,6 +245,7 @@ def make_webhook_payload():
         quoted_text: str | None = None,
         is_from_me: bool = False,
         remote_jid: str | None = None,
+        message_id: str = "MSG_ID_12345678",
     ) -> dict[str, Any]:
         jid = remote_jid or f"{sender_phone}@s.whatsapp.net"
         payload: dict[str, Any] = {
@@ -246,7 +255,7 @@ def make_webhook_payload():
                 "key": {
                     "remoteJid": jid,
                     "fromMe": is_from_me,
-                    "id": "MSG_ID_12345678",
+                    "id": message_id,
                 },
                 "pushName": "Test Sender",
                 "message": {},

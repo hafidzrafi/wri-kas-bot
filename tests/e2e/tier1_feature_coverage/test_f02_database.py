@@ -1,18 +1,8 @@
-"""Tier 1: Feature Coverage — Feature 2: SQLite WAL Database Engine (database.py)."""
+"""Tier 1: Feature Coverage: Feature 2: SQLite WAL Database Engine (database.py)."""
 
 import sqlite3
 
-import pytest
-
-try:
-    from wri_kas_bot.database import init_db
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    init_db = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.database not implemented yet")
+from wri_kas_bot.database import init_db
 
 
 def test_init_db_creates_core_tables(tmp_db_path):

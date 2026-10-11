@@ -1,4 +1,4 @@
-"""Tier 1: Feature Coverage — Feature 14: Receipt Ingestion Handler."""
+"""Tier 1: Feature Coverage: Feature 14: Receipt Ingestion Handler."""
 
 import base64
 from unittest.mock import AsyncMock

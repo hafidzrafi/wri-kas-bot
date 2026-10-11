@@ -19,6 +19,7 @@ os.environ.setdefault("BENDAHARA_JID", "6281100000099@s.whatsapp.net")
 os.environ.setdefault("DUE_AMOUNT_PER_MONTH", "10000")
 os.environ.setdefault("BILLING_HOUR", "19")
 os.environ.setdefault("BILLING_MINUTE", "0")
+os.environ["TYPING_DELAY_ENABLED"] = "false"
 
 # Synthetic Zero-PII Test Constants
 MOCK_TREASURER_PHONE = "6281100000001"

@@ -1,19 +1,10 @@
-"""Tier 2: Boundary & Corner Cases — Multimodal Gemini OCR (ocr.py)."""
+"""Tier 2: Boundary & Corner Cases: Multimodal Gemini OCR (ocr.py)."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-try:
-    from wri_kas_bot.ocr import OCRReceiptResult, extract_receipt_data
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    OCRReceiptResult = None
-    extract_receipt_data = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.ocr not implemented yet")
+from wri_kas_bot.ocr import extract_receipt_data
 
 
 @pytest.mark.asyncio

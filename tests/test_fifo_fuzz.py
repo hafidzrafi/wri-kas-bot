@@ -1,8 +1,4 @@
-"""Empirical stress testing and fuzz harness for FIFO dues allocation engine.
-
-Validates conservation of money, boundary conditions, combinatorial permutations,
-and adversarial inputs across 20,000+ randomized iterations and extreme edge cases.
-"""
+"""Tests for FIFO dues allocation edge cases and property fuzzing."""
 
 import random
 import time

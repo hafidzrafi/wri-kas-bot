@@ -1,4 +1,4 @@
-"""Tier 3: Cross-Feature Interactions — Cash Payment and Google Sheets Sync."""
+"""Tier 3: Cross-Feature Interactions: Cash Payment and Google Sheets Sync."""
 
 from unittest.mock import AsyncMock
 

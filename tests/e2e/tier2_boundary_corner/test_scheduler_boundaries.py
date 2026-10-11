@@ -1,16 +1,6 @@
-"""Tier 2: Boundary & Corner Cases — Monthly Billing Blast (scheduler.py)."""
+"""Tier 2: Boundary & Corner Cases: Monthly Billing Blast (scheduler.py)."""
 
 import pytest
-
-try:
-    from wri_kas_bot import scheduler
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    scheduler = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.scheduler not implemented yet")
 
 
 def test_scheduler_zero_unpaid_months_no_blast():

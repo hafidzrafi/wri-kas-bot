@@ -1,4 +1,4 @@
-"""Comprehensive unit tests for Evolution API models (src/wri_kas_bot/models.py)."""
+"""Unit tests for Evolution API models."""
 
 from wri_kas_bot.models import (
     CommandType,

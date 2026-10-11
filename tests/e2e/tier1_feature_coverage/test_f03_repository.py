@@ -1,18 +1,8 @@
-"""Tier 1: Feature Coverage — Feature 3: Domain Repositories (repository.py)."""
+"""Tier 1: Feature Coverage: Feature 3: Domain Repositories (repository.py)."""
 
 import sqlite3
 
-import pytest
-
-try:
-    from wri_kas_bot import repository
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    repository = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.repository not implemented yet")
+from wri_kas_bot import repository
 
 
 def test_member_repository_create_and_find_by_phone(initialized_db):

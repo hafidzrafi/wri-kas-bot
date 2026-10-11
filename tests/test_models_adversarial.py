@@ -1,8 +1,4 @@
-"""Empirical Adversarial & Stress Test Suite for Evolution API Models and Parsers.
-
-Tests deeply nested Baileys message structures, container unwrapping, quoted context,
-missing/null contextInfo resilience, group/direct JID resolution, and command parsing fuzzing.
-"""
+"""Tests for message parsing edge cases and nested WhatsApp structures."""
 
 from wri_kas_bot.evolution import normalize_jid
 from wri_kas_bot.models import (
@@ -19,9 +15,7 @@ from wri_kas_bot.models import (
 )
 from wri_kas_bot.ocr import _parse_amount
 
-# ==============================================================================
-# 1. DEEPLY NESTED & CONTAINER UNWRAPPING STRESS TESTS
-# ==============================================================================
+# Deeply nested message wrappers
 
 
 def test_deeply_nested_multi_layer_wrappers():
@@ -127,9 +121,7 @@ def test_quoted_message_view_once_wrapper_extraction():
     )
 
 
-# ==============================================================================
-# 2. MALFORMED, NULL, AND MISSING CONTEXT_INFO / KEY BOUNDARIES
-# ==============================================================================
+# Null and missing contextInfo handling
 
 
 def test_null_context_info_in_extended_text_does_not_crash():
@@ -228,9 +220,7 @@ def test_missing_or_empty_key_payload():
     assert payload.message_text == "hello"
 
 
-# ==============================================================================
-# 3. GROUP VS DIRECT SENDER PHONE & PARTICIPANT EXTRACTION
-# ==============================================================================
+# Group vs direct sender phone extraction
 
 
 def test_group_message_sender_phone_uses_participant():
@@ -269,9 +259,7 @@ def test_direct_message_sender_phone_ignores_irrelevant_participant():
     assert payload.sender_phone == "6281100000001"
 
 
-# ==============================================================================
-# 4. BASE64 MEDIA HANDLING VARIANTS
-# ==============================================================================
+# Base64 media variants
 
 
 def test_base64_data_uri_various_mime_prefixes():
@@ -297,9 +285,7 @@ def test_base64_raw_without_prefix():
     assert data.image_bytes_base64 == raw_payload
 
 
-# ==============================================================================
-# 5. COMMAND PARSING FUZZING & FINANCIAL ACCURACY
-# ==============================================================================
+# Command parsing and financial notation
 
 
 def test_command_type_case_insensitivity_and_spacing():
@@ -374,9 +360,7 @@ def test_quoted_no_pengurus_with_plus_prefix():
     )
 
 
-# ==============================================================================
-# 6. EVOLUTION CLIENT & OCR PARSER ADVERSARIAL CASES
-# ==============================================================================
+# Client normalization and OCR helpers
 
 
 def test_normalize_jid_with_embedded_spaces_in_jid():

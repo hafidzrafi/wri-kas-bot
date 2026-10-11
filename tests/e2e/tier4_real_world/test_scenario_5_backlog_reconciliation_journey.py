@@ -1,4 +1,4 @@
-"""Tier 4: Real-World Scenarios — Scenario 5: Backlog Reconciliation Journey."""
+"""Tier 4: Real-World Scenarios: Scenario 5: Backlog Reconciliation Journey."""
 
 from wri_kas_bot import reconcile
 from wri_kas_bot.database import Database

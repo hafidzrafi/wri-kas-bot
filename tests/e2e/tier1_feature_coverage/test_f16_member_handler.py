@@ -1,4 +1,4 @@
-"""Tier 1: Feature Coverage — Feature 16: Member Self-Service Handler."""
+"""Tier 1: Feature Coverage: Feature 16: Member Self-Service Handler."""
 
 from unittest.mock import AsyncMock
 

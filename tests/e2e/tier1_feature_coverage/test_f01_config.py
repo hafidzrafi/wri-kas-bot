@@ -1,16 +1,6 @@
-"""Tier 1: Feature Coverage — Feature 1: Configuration Management (config.py)."""
+"""Tier 1: Feature Coverage: Feature 1: Configuration Management (config.py)."""
 
-import pytest
-
-try:
-    from wri_kas_bot.config import Settings
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    Settings = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.config not implemented yet")
+from wri_kas_bot.config import Settings
 
 
 def test_default_settings_instantiation():

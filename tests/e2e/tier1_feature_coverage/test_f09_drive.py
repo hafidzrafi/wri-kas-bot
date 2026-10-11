@@ -1,4 +1,4 @@
-"""Tier 1: Feature Coverage — Feature 9: Google Drive Archival."""
+"""Tier 1: Feature Coverage: Feature 9: Google Drive Archival."""
 
 from unittest.mock import MagicMock, patch
 

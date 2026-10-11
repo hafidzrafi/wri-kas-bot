@@ -1,18 +1,10 @@
-"""Tier 1: Feature Coverage — Feature 7: Evolution API HTTP Client (evolution.py)."""
+"""Tier 1: Feature Coverage: Feature 7: Evolution API HTTP Client (evolution.py)."""
 
 import httpx
 import pytest
 import respx
 
-try:
-    from wri_kas_bot.evolution import EvolutionClient
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    EvolutionClient = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.evolution not implemented yet")
+from wri_kas_bot.evolution import EvolutionClient
 
 
 @pytest.mark.asyncio

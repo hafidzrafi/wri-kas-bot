@@ -1,4 +1,4 @@
-"""Tier 4: Real-World Scenarios — Scenario 6: Rejection and Resubmission Flow."""
+"""Tier 4: Real-World Scenarios: Scenario 6: Rejection and Resubmission Flow."""
 
 import base64
 from unittest.mock import AsyncMock

@@ -1,4 +1,4 @@
-"""Tier 4: Real-World Scenarios — Scenario 1: Standard Transfer Payment Journey (Alice)."""
+"""Tier 4: Real-World Scenarios: Scenario 1: Standard Transfer Payment Journey (Alice)."""
 
 import base64
 from unittest.mock import AsyncMock

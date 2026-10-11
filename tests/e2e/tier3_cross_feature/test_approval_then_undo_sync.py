@@ -1,4 +1,4 @@
-"""Tier 3: Cross-Feature Interactions — Approval then Undo Rollback with Sheets BatchClear."""
+"""Tier 3: Cross-Feature Interactions: Approval then Undo Rollback with Sheets BatchClear."""
 
 import pytest
 

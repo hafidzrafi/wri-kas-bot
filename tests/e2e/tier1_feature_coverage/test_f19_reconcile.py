@@ -1,4 +1,4 @@
-"""Tier 1: Feature Coverage — Feature 19: Standalone Reconciler CLI (reconcile.py)."""
+"""Tier 1: Feature Coverage: Feature 19: Standalone Reconciler CLI (reconcile.py)."""
 
 from wri_kas_bot import reconcile
 from wri_kas_bot.database import Database

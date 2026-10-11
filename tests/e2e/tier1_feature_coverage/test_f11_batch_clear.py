@@ -1,16 +1,6 @@
-"""Tier 1: Feature Coverage — Feature 11: Sheets BatchClear Rollback (sheets.py)."""
+"""Tier 1: Feature Coverage: Feature 11: Sheets BatchClear Rollback (sheets.py)."""
 
-import pytest
-
-try:
-    from wri_kas_bot.sheets import GoogleSheetsClient
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    GoogleSheetsClient = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.sheets not implemented yet")
+from wri_kas_bot.sheets import GoogleSheetsClient
 
 
 def test_batch_clear_cells_clears_multiple_ranges(mock_sheets_client):

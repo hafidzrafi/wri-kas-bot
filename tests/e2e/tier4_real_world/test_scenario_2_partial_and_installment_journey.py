@@ -1,4 +1,4 @@
-"""Tier 4: Real-World Scenarios — Scenario 2: Partial Underpayment & Installment Top-up (Bob)."""
+"""Tier 4: Real-World Scenarios: Scenario 2: Partial Underpayment & Installment Top-up (Bob)."""
 
 from unittest.mock import AsyncMock
 

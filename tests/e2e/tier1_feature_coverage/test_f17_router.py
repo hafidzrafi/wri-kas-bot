@@ -1,17 +1,9 @@
-"""Tier 1: Feature Coverage — Feature 17: FastAPI Application Router (app.py)."""
+"""Tier 1: Feature Coverage: Feature 17: FastAPI Application Router (app.py)."""
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-try:
-    from wri_kas_bot.app import app
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    app = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.app not implemented yet")
+from wri_kas_bot.app import app
 
 
 @pytest.mark.asyncio
@@ -26,7 +18,7 @@ async def test_health_check_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_webhook_endpoint_accepts_post(make_webhook_payload):
+async def test_webhook_endpoint_accepts_post(make_webhook_payload, mock_evolution_api):
     """Verify POST /webhook returns 200 OK."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

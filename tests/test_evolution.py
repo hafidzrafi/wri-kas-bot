@@ -1,4 +1,4 @@
-"""Comprehensive unit tests for Evolution API client (src/wri_kas_bot/evolution.py)."""
+"""Unit tests for Evolution API client."""
 
 import httpx
 import pytest

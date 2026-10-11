@@ -1,4 +1,4 @@
-"""Tier 3: Cross-Feature Interactions — Member Status Query Reflection."""
+"""Tier 3: Cross-Feature Interactions: Member Status Query Reflection."""
 
 from unittest.mock import AsyncMock
 

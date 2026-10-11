@@ -1,17 +1,6 @@
-"""Tier 1: Feature Coverage — Feature 4: Deterministic FIFO Engine (fifo.py)."""
+"""Tier 1: Feature Coverage: Feature 4: Deterministic FIFO Engine (fifo.py)."""
 
-import pytest
-
-try:
-    from wri_kas_bot.fifo import AllocationResult, allocate_dues
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    allocate_dues = None
-    AllocationResult = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.fifo not implemented yet")
+from wri_kas_bot.fifo import allocate_dues
 
 ALL_UNPAID_2026 = [(2026, m) for m in range(2, 13)]  # Feb to Dec (11 months)
 

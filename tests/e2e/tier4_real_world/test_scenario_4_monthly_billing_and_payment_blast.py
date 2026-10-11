@@ -1,4 +1,4 @@
-"""Tier 4: Real-World Scenarios — Scenario 4: Automated Monthly Billing Blast."""
+"""Tier 4: Real-World Scenarios: Scenario 4: Automated Monthly Billing Blast."""
 
 import datetime
 from unittest.mock import AsyncMock

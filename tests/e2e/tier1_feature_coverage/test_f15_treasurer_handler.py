@@ -1,4 +1,4 @@
-"""Tier 1: Feature Coverage — Feature 15: Treasurer Moderation Handler."""
+"""Tier 1: Feature Coverage: Feature 15: Treasurer Moderation Handler."""
 
 from unittest.mock import AsyncMock
 

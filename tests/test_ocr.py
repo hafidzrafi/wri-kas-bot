@@ -1,4 +1,4 @@
-"""Comprehensive unit tests for Multimodal Gemini Flash OCR (src/wri_kas_bot/ocr.py)."""
+"""Unit tests for Gemini OCR parser."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -31,7 +31,7 @@ def test_detect_mime_type_magic_bytes():
 
 
 def test_parse_amount_currency_sanitization_matrix():
-    """Verify robust parsing of Indonesian currency formats, cents, and edge cases."""
+    """Test parsing of Indonesian currency formats, cents, and edge cases."""
     # Direct numbers
     assert _parse_amount(20000) == 20000
     assert _parse_amount(20000.0) == 20000

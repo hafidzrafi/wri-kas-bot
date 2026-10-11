@@ -1,4 +1,4 @@
-"""Tier 4: Real-World Scenarios — Scenario 3: Cash Payment & Undo Rollback (Charlie)."""
+"""Tier 4: Real-World Scenarios: Scenario 3: Cash Payment & Undo Rollback (Charlie)."""
 
 from unittest.mock import AsyncMock
 

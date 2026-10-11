@@ -1,15 +1,4 @@
-"""Empirical adversarial stress testing for undo.py and database.py concurrency.
-
-Covers:
-- Double undo (sequential and race condition)
-- Out-of-order undo & Chronological Latest Transaction Guard
-- Member isolation during undo
-- Rejection of non-approved transactions (PENDING, REJECTED, REVERTED)
-- /koreksi with higher, lower, zero, and negative amounts
-- Dues matrix exact recalculation and conservation of funds
-- Multithreaded write contention and WAL deadlock prevention
-- Interaction between execute_undo and Database.transaction()
-"""
+"""Tests for undo and koreksi concurrency and edge cases."""
 
 import sqlite3
 import threading

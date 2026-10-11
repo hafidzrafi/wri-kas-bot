@@ -1,18 +1,8 @@
-"""Tier 1: Feature Coverage — Feature 13: Transactional Outbox Worker (outbox.py)."""
+"""Tier 1: Feature Coverage: Feature 13: Transactional Outbox Worker (outbox.py)."""
 
 import sqlite3
 
 import pytest
-
-try:
-    from wri_kas_bot import outbox
-
-    HAS_MODULE = True
-except ImportError:
-    HAS_MODULE = False
-    outbox = None
-
-pytestmark = pytest.mark.skipif(not HAS_MODULE, reason="wri_kas_bot.outbox not implemented yet")
 
 
 @pytest.mark.asyncio
