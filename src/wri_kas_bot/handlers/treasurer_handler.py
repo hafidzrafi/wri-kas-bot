@@ -240,7 +240,7 @@ async def _handle_cash(
             recipient=settings.bendahara_jid,
             text=(
                 "Format salah. Gunakan: /tunai [nomor_hp] [nominal]\n"
-                "Contoh: /tunai 08123456789 20000"
+                "Contoh: /tunai 6281100000001 20000"
             ),
         )
         return {"status": "invalid_syntax"}
@@ -250,7 +250,7 @@ async def _handle_cash(
     if not nominal or nominal <= 0:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text="Nominal tidak valid. Contoh: /tunai 08123456789 20000",
+            text="Nominal tidak valid. Contoh: /tunai 6281100000001 20000",
         )
         return {"status": "invalid_nominal"}
 
