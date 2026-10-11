@@ -1,0 +1,19 @@
+services:
+  wri-kas-bot:
+    build: .
+    container_name: wri-kas-bot
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./credentials.json:/app/credentials.json:ro
+    networks:
+      - wri_network
+
+networks:
+  wri_network:
+    name: wri_network
+    external: true

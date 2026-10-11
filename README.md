@@ -111,3 +111,16 @@ uv run uvicorn wri_kas_bot.app:app --host 0.0.0.0 --port 8000 --reload
 uv run python -m wri_kas_bot.reconcile --dry-run
 uv run python -m wri_kas_bot.reconcile --apply
 ```
+
+## Docker Deployment
+
+```bash
+# Create shared docker network if not already present
+docker network create wri_network || true
+
+# Build and start container in detached mode
+docker compose up -d --build
+
+# View container logs
+docker compose logs -f
+```
