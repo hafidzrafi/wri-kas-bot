@@ -71,7 +71,7 @@ WEBHOOK_SECRET=your_webhook_secret
 
 # Multimodal Vision OCR
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 
 # Google Workspace Integration
 GOOGLE_SPREADSHEET_ID=your_spreadsheet_id

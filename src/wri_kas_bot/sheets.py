@@ -277,3 +277,61 @@ class GoogleSheetsClient:
                 body={"values": rows_to_append},
             ).execute()
             logger.info("Appended %d summary rows to %s", len(rows_to_append), SHEET_DEBIT_KREDIT)
+
+    def fetch_all_members(self) -> list[dict[str, Any]]:
+        """Retrieve all registered members from data_pengurus sheet.
+
+        Returns list of dicts with keys: name, phone_number, status, deposit_balance.
+        """
+        rows = self._get_values(f"{SHEET_DATA_PENGURUS}!A1:E100")
+        if not rows or len(rows) < 2:
+            return []
+
+        headers = [str(c).strip().lower() for c in rows[0]]
+
+        def _find_idx(candidates: tuple[str, ...], default: int) -> int:
+            for cand in candidates:
+                if cand in headers:
+                    return headers.index(cand)
+            return default
+
+        name_idx = _find_idx(("nama", "name"), 0)
+        phone_idx = _find_idx(("no hp", "nomor hp", "phone"), 1)
+        status_idx = _find_idx(("status", "keaktifan"), 2)
+        saldo_idx = _find_idx(("saldo", "balance"), 3)
+
+        members: list[dict[str, Any]] = []
+        for r in rows[1:]:
+            if len(r) > max(name_idx, phone_idx):
+                name = str(r[name_idx]).strip()
+                raw_phone = re.sub(r"\D", "", str(r[phone_idx]).strip())
+                if not raw_phone:
+                    continue
+                if raw_phone.startswith("08"):
+                    phone = "62" + raw_phone[1:]
+                elif raw_phone.startswith("8"):
+                    phone = "62" + raw_phone
+                else:
+                    phone = raw_phone
+
+                raw_status = str(r[status_idx]).strip().lower() if len(r) > status_idx else "aktif"
+                status = "Aktif" if raw_status == "aktif" else "Nonaktif"
+
+                saldo = 0
+                if len(r) > saldo_idx:
+                    try:
+                        digits = re.sub(r"\D", "", str(r[saldo_idx]))
+                        saldo = int(digits) if digits else 0
+                    except ValueError:
+                        saldo = 0
+
+                if name and phone:
+                    members.append(
+                        {
+                            "name": name,
+                            "phone_number": phone,
+                            "status": status,
+                            "deposit_balance": saldo,
+                        }
+                    )
+        return members

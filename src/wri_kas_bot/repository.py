@@ -5,6 +5,7 @@ Encapsulates SQL queries with parameter binding, schema integrity, and dataclass
 
 import json
 import logging
+import re
 import sqlite3
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -247,7 +248,20 @@ class MemberRepository:
         return int(cur.lastrowid)
 
     def get_by_phone(self, phone: str) -> Member | None:
-        row = self.conn.execute("SELECT * FROM members WHERE phone_number = ?", (phone,)).fetchone()
+        clean = re.sub(r"\D", "", str(phone))
+        variants = [str(phone), clean]
+        if clean.startswith("628"):
+            variants.append("08" + clean[3:])
+            variants.append("+" + clean)
+        elif clean.startswith("08"):
+            variants.append("628" + clean[2:])
+            variants.append("+628" + clean[2:])
+        unique_variants = list(dict.fromkeys(v for v in variants if v))
+        placeholders = ",".join("?" for _ in unique_variants)
+        row = self.conn.execute(
+            f"SELECT * FROM members WHERE phone_number IN ({placeholders}) LIMIT 1",
+            unique_variants,
+        ).fetchone()
         return _row_to_member(row)
 
     def find_by_phone(self, phone: str) -> Member | None:
