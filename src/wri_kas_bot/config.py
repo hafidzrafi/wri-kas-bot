@@ -165,6 +165,18 @@ class Settings(BaseSettings):
         description="Server listening host address. Defaults to 0.0.0.0.",
     )
 
+    # 8. WhatsApp Interaction Experience
+    typing_delay_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("TYPING_DELAY_ENABLED", "typing_delay_enabled"),
+        description="Enable presence composing and typing delay before replying.",
+    )
+    typing_delay_base_ms: int = Field(
+        default=1200,
+        validation_alias=AliasChoices("TYPING_DELAY_BASE_MS", "typing_delay_base_ms"),
+        description="Base delay in milliseconds for typing indicator.",
+    )
+
     @property
     def database_path(self) -> str:
         """Extract clean filesystem path from database_url or return direct path."""

@@ -4,7 +4,9 @@ Exposes /health monitoring endpoint and /webhook for Evolution API v2
 events with automatic validation and handler dispatching.
 """
 
+import asyncio
 import logging
+import random
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -36,6 +38,16 @@ async def lifespan(app_instance: FastAPI):
     app_instance.state.db = db
     app_instance.state.evolution = EvolutionClient()
     logger.info("wri-kas-bot started up with db=%s", db_path)
+
+    # Initial member synchronization from Google Sheets
+    try:
+        from wri_kas_bot.sync import sync_members_from_sheets
+
+        synced = sync_members_from_sheets(db)
+        logger.info("Initial member sync completed: %d members", synced)
+    except Exception as exc:
+        logger.warning("Initial member sync skipped or failed during startup: %s", exc)
+
     yield
     logger.info("wri-kas-bot shutting down")
 
@@ -118,6 +130,26 @@ async def webhook_handler(request: Request) -> JSONResponse:
     sender_phone = payload.sender_phone
     sender_jid = payload.sender_jid
     text_body = payload.text_body.strip()
+
+    # UX Feature: Mark as read (blue ticks) & send typing presence indicator
+    if sender_jid:
+        if payload.message_id:
+            await evolution.mark_message_as_read(
+                remote_jid=sender_jid,
+                message_id=payload.message_id,
+                from_me=False,
+            )
+
+        words = len(text_body.split()) if text_body else 1
+        jitter = random.randint(-150, 250)
+        delay_ms = max(500, settings.typing_delay_base_ms + (words * 30) + jitter)
+        await evolution.send_presence(
+            remote_jid=sender_jid,
+            presence="composing",
+            delay_ms=delay_ms,
+        )
+        if settings.typing_delay_enabled and delay_ms > 0:
+            await asyncio.sleep(delay_ms / 1000.0)
 
     is_treasurer = sender_phone == settings.bendahara_number or sender_jid == settings.bendahara_jid
 

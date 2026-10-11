@@ -262,3 +262,58 @@ class EvolutionClient:
                 f"HTTP transport failure calling getBase64FromMediaMessage: {exc}",
                 request_url=url,
             ) from exc
+
+    async def mark_message_as_read(
+        self,
+        remote_jid: str,
+        message_id: str,
+        from_me: bool = False,
+    ) -> bool:
+        """Mark inbound WhatsApp message as read (blue ticks / seen)."""
+        formatted_jid = normalize_jid(remote_jid)
+        encoded_instance = urllib.parse.quote(self.instance, safe="")
+        url = f"{self.base_url}/chat/markMessageAsRead/{encoded_instance}"
+        payload = {
+            "readMessages": [
+                {
+                    "remoteJid": formatted_jid,
+                    "fromMe": from_me,
+                    "id": message_id,
+                }
+            ]
+        }
+        client = await self._get_client()
+        try:
+            resp = await client.post(url, headers=self.headers, json=payload)
+            return resp.status_code in (200, 201)
+        except Exception as exc:
+            logger.warning(
+                "mark_message_as_read failed for %s (%s): %s",
+                formatted_jid,
+                message_id,
+                exc,
+            )
+            return False
+
+    async def send_presence(
+        self,
+        remote_jid: str,
+        presence: str = "composing",
+        delay_ms: int = 1200,
+    ) -> bool:
+        """Send presence status (composing/typing or recording) with optional delay."""
+        formatted_jid = normalize_jid(remote_jid)
+        encoded_instance = urllib.parse.quote(self.instance, safe="")
+        url = f"{self.base_url}/chat/sendPresence/{encoded_instance}"
+        payload = {
+            "number": formatted_jid,
+            "delay": delay_ms,
+            "presence": presence,
+        }
+        client = await self._get_client()
+        try:
+            resp = await client.post(url, headers=self.headers, json=payload)
+            return resp.status_code in (200, 201)
+        except Exception as exc:
+            logger.warning("send_presence failed for %s: %s", formatted_jid, exc)
+            return False
