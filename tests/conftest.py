@@ -27,6 +27,16 @@ MOCK_MEMBER_ALICE_PHONE = "6281100000003"
 MOCK_MEMBER_BOB_PHONE = "6281100000004"
 
 
+@pytest.fixture(autouse=True)
+def clear_settings_cache():
+    """Ensure cached settings singleton is reset between tests."""
+    from wri_kas_bot.config import get_settings
+
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 @pytest.fixture
 def in_memory_db() -> Generator[sqlite3.Connection, None, None]:
     """Isolated in-memory SQLite connection with schema initialized and foreign keys enabled."""

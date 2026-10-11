@@ -43,6 +43,18 @@ def test_batch_clear_cells_does_not_mutate_unrelated_cells(mock_sheets_client):
     assert "PENGURUS-2025/2026!F5" not in mock_sheets_client.cleared_ranges
 
 
-def test_batch_clear_cells_handles_retry_on_network_timeout():
-    """Verify transient error in batch clear is retried."""
-    assert True
+def test_batch_clear_cells_sends_batch_clear_payload():
+    """Verify batch_clear_cells sends correct ranges body payload."""
+    from unittest.mock import MagicMock, patch
+
+    with patch("googleapiclient.discovery.build") as mock_build:
+        mock_service = MagicMock()
+        mock_build.return_value = mock_service
+        client = GoogleSheetsClient(spreadsheet_id="test-sheet-id")
+        client._service = mock_service
+
+        client.batch_clear_cells(["PENGURUS-2025/2026!D5", "PENGURUS-2025/2026!D6"])
+        mock_clear = mock_service.spreadsheets().values().batchClear
+        mock_clear.assert_called_once()
+        body = mock_clear.call_args.kwargs.get("body")
+        assert body == {"ranges": ["PENGURUS-2025/2026!D5", "PENGURUS-2025/2026!D6"]}

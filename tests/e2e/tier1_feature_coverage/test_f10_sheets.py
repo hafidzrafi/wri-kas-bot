@@ -52,8 +52,9 @@ def test_append_log_transaksi_exact_header_keys(mock_sheets_client):
 def test_update_member_balance(mock_sheets_client):
     """Verify updating member balance in data_pengurus."""
     mock_sheets_client.update_member_balance(phone="6281100000001", balance=5000)
-    # Mock accepts call without exception
-    assert True
+    mock_sheets_client.update_member_balance.assert_called_once_with(
+        phone="6281100000001", balance=5000
+    )
 
 
 def test_update_payment_month_cash_sets_tunai(mock_sheets_client):

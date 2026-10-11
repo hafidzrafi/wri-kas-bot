@@ -45,6 +45,24 @@ def test_scheduler_anti_spam_skips_recent_last_billed():
     assert is_already_billed is True
 
 
-def test_scheduler_empty_member_directory_completes():
+@pytest.mark.asyncio
+async def test_scheduler_empty_member_directory_completes(tmp_db_path, sqlite_schema_sql):
     """Boundary: Empty members table completes gracefully with zero dispatches."""
-    assert True
+    import sqlite3
+    from unittest.mock import AsyncMock
+
+    from wri_kas_bot.database import Database
+    from wri_kas_bot.evolution import EvolutionClient
+    from wri_kas_bot.scheduler import execute_billing_blast
+
+    conn = sqlite3.connect(tmp_db_path)
+    conn.executescript(sqlite_schema_sql)
+    conn.close()
+
+    db = Database(tmp_db_path)
+    evo = EvolutionClient()
+    evo.send_text = AsyncMock()
+
+    count = await execute_billing_blast(db=db, evolution=evo, delay_between_messages=False)
+    assert count == 0
+    evo.send_text.assert_not_called()

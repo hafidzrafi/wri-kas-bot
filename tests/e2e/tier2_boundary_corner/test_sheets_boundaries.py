@@ -44,6 +44,11 @@ def test_log_transaksi_missing_optional_fields_handled(mock_sheets_client):
     assert len(mock_sheets_client.appended_rows) == 1
 
 
-def test_sheets_client_exponential_backoff_on_quota():
-    """Boundary: Google Sheets 429 quota error triggers backoff retry."""
-    assert True
+def test_sheets_client_batch_clear_empty_ranges_noops():
+    """Boundary: batch_clear_cells with empty or whitespace list no-ops safely."""
+    from unittest.mock import MagicMock
+
+    client = GoogleSheetsClient(spreadsheet_id="test-sheet-id")
+    client._service = MagicMock()
+    client.batch_clear_cells([])
+    client.service.spreadsheets().values().batchClear.assert_not_called()

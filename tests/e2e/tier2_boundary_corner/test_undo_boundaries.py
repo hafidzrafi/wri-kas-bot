@@ -1,6 +1,5 @@
 """Tier 2: Boundary & Corner Cases — Undo & Rollback Engine (undo.py)."""
 
-import contextlib
 import sqlite3
 
 import pytest
@@ -123,8 +122,9 @@ def test_undo_mutated_balance_detection(initialized_db):
     cursor.execute("UPDATE members SET balance = 20000 WHERE id = 1")
     conn.commit()
 
-    with contextlib.suppress(Exception):
-        execute_undo(conn, tx1_id)
+    res = execute_undo(conn, tx1_id, raise_on_error=False)
+    assert res.success is True
 
+    cursor.execute("SELECT balance FROM members WHERE id = 1")
+    assert cursor.fetchone()[0] == 0
     conn.close()
-    assert True
