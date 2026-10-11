@@ -22,6 +22,7 @@ receipts/
 docs/
 *.md.draft
 scratch/
+.agents/
 
 # Python & Tooling Caches
 __pycache__/

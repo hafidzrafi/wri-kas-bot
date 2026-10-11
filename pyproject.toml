@@ -37,6 +37,7 @@ packages = ["src/wri_kas_bot"]
 [tool.ruff]
 src = ["src"]
 line-length = 100
+extend-exclude = [".agents"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
