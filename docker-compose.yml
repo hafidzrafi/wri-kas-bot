@@ -1,17 +1,20 @@
 services:
-  wri-kas-bot:
+  kas-wri-bot:
     build: .
-    container_name: wri-kas-bot
+    container_name: kas-wri-bot
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8090:8090"
     env_file:
       - .env
     volumes:
       - ./data:/app/data
       - ./credentials.json:/app/credentials.json:ro
     networks:
-      - wri_network
+      wri_network:
+        aliases:
+          - kas-wri-bot
+          - wri-kas-bot
 
 networks:
   wri_network:

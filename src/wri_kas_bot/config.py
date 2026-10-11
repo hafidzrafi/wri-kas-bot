@@ -154,6 +154,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("WEBHOOK_SECRET", "webhook_secret"),
         description="Optional shared secret for inbound webhook validation.",
     )
+    port: int = Field(
+        default=8090,
+        validation_alias=AliasChoices("PORT", "port"),
+        description="Server port. Defaults to 8090 to match Evolution API webhook.",
+    )
+    host: str = Field(
+        default="0.0.0.0",
+        validation_alias=AliasChoices("HOST", "host"),
+        description="Server listening host address. Defaults to 0.0.0.0.",
+    )
 
     @property
     def database_path(self) -> str:

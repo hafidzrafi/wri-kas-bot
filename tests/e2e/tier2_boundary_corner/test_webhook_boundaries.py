@@ -67,3 +67,14 @@ async def test_webhook_unregistered_sender_rejection(make_webhook_payload, mock_
         payload = make_webhook_payload(sender_phone="6289999999999", message_text="/status")
         res = await client.post("/webhook", json=payload)
         assert res.status_code in (200, 202)
+
+
+@pytest.mark.asyncio
+async def test_webhook_wri_alias_endpoint(make_webhook_payload):
+    """Verify that the /webhook/wri route alias correctly handles payloads."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        payload = make_webhook_payload(is_from_me=True, message_text="/status")
+        res = await client.post("/webhook/wri", json=payload)
+        assert res.status_code in (200, 202)
+        assert res.json().get("status") == "ignored_from_me"

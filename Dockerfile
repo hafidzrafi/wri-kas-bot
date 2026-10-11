@@ -18,10 +18,10 @@ RUN uv pip install --system --no-cache -e .
 # Create directory for persistent SQLite and receipts storage
 RUN mkdir -p /app/data/receipts
 
-EXPOSE 8000
+EXPOSE 8090
 
 # Container health probe
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')" || exit 1
 
-CMD ["uvicorn", "wri_kas_bot.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "wri_kas_bot.main"]

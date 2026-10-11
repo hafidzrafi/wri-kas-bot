@@ -44,7 +44,7 @@ async def run_server() -> None:
     logger.info("APScheduler initialized for monthly billing blasts")
 
     # 3. Start Uvicorn Web Server
-    config = uvicorn.Config(app=app, host="0.0.0.0", port=8000, log_level="info")
+    config = uvicorn.Config(app=app, host=settings.host, port=settings.port, log_level="info")
     server = uvicorn.Server(config)
 
     try:

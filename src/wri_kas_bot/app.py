@@ -75,6 +75,7 @@ async def health_check() -> dict[str, str]:
 
 
 @app.post("/webhook", status_code=status.HTTP_200_OK)
+@app.post("/webhook/wri", status_code=status.HTTP_200_OK)
 async def webhook_handler(request: Request) -> JSONResponse:
     """Inbound webhook event receiver for Evolution API v2."""
     settings = get_settings()
