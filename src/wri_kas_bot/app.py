@@ -77,6 +77,15 @@ async def health_check() -> dict[str, str]:
 @app.post("/webhook", status_code=status.HTTP_200_OK)
 async def webhook_handler(request: Request) -> JSONResponse:
     """Inbound webhook event receiver for Evolution API v2."""
+    settings = get_settings()
+    if settings.webhook_secret:
+        header_secret = request.headers.get("x-webhook-secret") or request.headers.get("apikey")
+        if header_secret != settings.webhook_secret:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or missing webhook secret header",
+            )
+
     try:
         raw_json = await request.json()
     except Exception:
@@ -104,17 +113,12 @@ async def webhook_handler(request: Request) -> JSONResponse:
 
     db = get_db(request)
     evolution = get_evolution(request)
-    settings = get_settings()
 
     sender_phone = payload.sender_phone
     sender_jid = payload.sender_jid
     text_body = payload.text_body.strip()
 
-    is_treasurer = (
-        sender_phone == settings.bendahara_number
-        or sender_jid == settings.bendahara_jid
-        or sender_jid.startswith(settings.bendahara_number)
-    )
+    is_treasurer = sender_phone == settings.bendahara_number or sender_jid == settings.bendahara_jid
 
     treasurer_cmds = (
         "/acc",

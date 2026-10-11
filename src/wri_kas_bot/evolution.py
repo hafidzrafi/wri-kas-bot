@@ -116,9 +116,17 @@ class EvolutionClient:
             msg_id = "UNKNOWN_MSG_ID"
         return str(msg_id)
 
-    async def send_text(self, jid: str, text: str) -> str:
+    async def send_text(
+        self,
+        jid: str | None = None,
+        text: str = "",
+        recipient: str | None = None,
+    ) -> str:
         """Send plain text message to WhatsApp recipient."""
-        formatted_jid = normalize_jid(jid)
+        target = jid or recipient
+        if not target:
+            raise ValueError("Missing jid or recipient parameter")
+        formatted_jid = normalize_jid(target)
         encoded_instance = urllib.parse.quote(self.instance, safe="")
         url = f"{self.base_url}/message/sendText/{encoded_instance}"
         payload = {
@@ -148,12 +156,16 @@ class EvolutionClient:
 
     async def send_image_base64(
         self,
-        jid: str,
-        image_base64: str,
+        jid: str | None = None,
+        image_base64: str = "",
         caption: str = "",
+        recipient: str | None = None,
     ) -> str:
         """Send base64-encoded image to WhatsApp recipient using Data URI scheme."""
-        formatted_jid = normalize_jid(jid)
+        target = jid or recipient
+        if not target:
+            raise ValueError("Missing jid or recipient parameter")
+        formatted_jid = normalize_jid(target)
         clean_b64 = image_base64.strip()
         if clean_b64.startswith("data:"):
             media_data_uri = clean_b64
@@ -190,6 +202,31 @@ class EvolutionClient:
                 f"HTTP transport failure calling sendMedia: {exc}",
                 request_url=url,
             ) from exc
+
+    async def send_media(
+        self,
+        jid: str | None = None,
+        media: str = "",
+        caption: str = "",
+        recipient: str | None = None,
+        media_type: str = "image",
+        file_name: str = "receipt.jpg",
+    ) -> dict[str, Any]:
+        """Convenience wrapper around send_image_base64 returning message dictionary."""
+        target = jid or recipient
+        msg_id = await self.send_image_base64(
+            jid=target,
+            image_base64=media,
+            caption=caption,
+        )
+        return {"key": {"id": msg_id, "fromMe": True}, "status": "PENDING"}
+
+    async def download_media(self, media_url: str) -> bytes:
+        """Download raw binary media content from URL."""
+        client = await self._get_client()
+        resp = await client.get(media_url, headers=self.headers)
+        resp.raise_for_status()
+        return resp.content
 
     async def get_base64_from_media_message(
         self,

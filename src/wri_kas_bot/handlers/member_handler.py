@@ -64,9 +64,10 @@ async def _handle_status(
     with db.connect() as conn:
         dues_repo = MonthlyDuesRepository(conn)
 
-        all_dues = dues_repo.get_all_for_member(member_id, year=2026)
-        paid_months = [d["month"] for d in all_dues if d["status"] == "PAID"]
-        unpaid_months = [d["month"] for d in all_dues if d["status"] == "UNPAID"]
+        paid_dues = dues_repo.get_paid(member_id, year=2026)
+        unpaid_dues = dues_repo.get_unpaid(member_id, year=2026)
+        paid_months = [d.month for d in paid_dues]
+        unpaid_months = [d.month for d in unpaid_dues]
 
         # Check for pending transaction awaiting verification
         pending_txs = conn.execute(
@@ -130,8 +131,8 @@ async def _handle_bayar(
         f"Tagihan Anda saat ini: *Rp {net_bill:,}*\n\n"
         f"Silakan transfer ke salah satu rekening resmi WRI:\n\n"
         f"🏦 *Bank Jago*\n"
-        f"• No. Rekening: *1045 2819 0921*\n"
-        f"• Atas Nama: *Hafidz Rafi Rabbani / Kas WRI*\n\n"
+        f"• No. Rekening: *{settings.bank_account_number}*\n"
+        f"• Atas Nama: *{settings.bank_account_holder}*\n\n"
         f"📱 *QRIS All Payment:*\n"
         f"{settings.qris_file_url}\n\n"
         f"📌 *Penting:* Setelah transfer berhasil, silakan langsung kirimkan "

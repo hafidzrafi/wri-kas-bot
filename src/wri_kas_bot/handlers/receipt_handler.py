@@ -12,6 +12,7 @@ from typing import Any
 
 from wri_kas_bot.config import get_settings
 from wri_kas_bot.database import Database
+from wri_kas_bot.drive import format_drive_filename
 from wri_kas_bot.evolution import EvolutionClient
 from wri_kas_bot.models import WebhookPayload
 from wri_kas_bot.ocr import ReceiptOCR
@@ -49,39 +50,35 @@ async def handle_receipt(
 
     # 2. Extract or Download Image Bytes
     image_bytes: bytes = b""
-    msg_data = payload.data.message
-    if msg_data:
-        if msg_data.base64:
-            try:
-                image_bytes = base64.b64decode(msg_data.base64)
-            except Exception:
-                image_bytes = b""
-        elif msg_data.image_message and msg_data.image_message.jpeg_thumbnail:
-            try:
-                image_bytes = base64.b64decode(msg_data.image_message.jpeg_thumbnail)
-            except Exception:
-                image_bytes = b""
+    b64_str = payload.image_bytes_base64
+    if b64_str:
+        try:
+            image_bytes = base64.b64decode(b64_str)
+        except Exception as exc:
+            logger.warning("Failed decoding image base64: %s", exc)
 
     if not image_bytes:
-        # Fallback to downloading media if media_url is provided
+        msg_data = payload.data.message
         media_url = getattr(msg_data, "media_url", None) if msg_data else None
         if media_url:
             try:
                 image_bytes = await evo.download_media(media_url)
             except Exception as exc:
                 logger.warning("Could not download media from %s: %s", media_url, exc)
-                image_bytes = b"fake-receipt-placeholder"
-        else:
-            image_bytes = b"fake-receipt-placeholder"
 
-    # 3. Save Receipt to Local Disk
+    if not image_bytes:
+        logger.warning("Received receipt message with no extractable image bytes")
+        image_bytes = b""
+
+    # 3. Save Receipt to Local Disk (Strict sanitized path)
     receipts_dir = Path(settings.receipts_dir)
     receipts_dir.mkdir(parents=True, exist_ok=True)
-    clean_name = member["name"].replace(" ", "_")
     ts = payload.data.message_timestamp or 1700000000
-    file_path = receipts_dir / f"{ts}_{sender_phone}_{clean_name}.jpg"
+    safe_filename = format_drive_filename(sender_phone, member["name"], str(ts))
+    file_path = receipts_dir / safe_filename
     try:
-        file_path.write_bytes(image_bytes)
+        if image_bytes:
+            file_path.write_bytes(image_bytes)
     except Exception as exc:
         logger.error("Failed saving receipt image to %s: %s", file_path, exc)
 

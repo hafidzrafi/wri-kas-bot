@@ -13,7 +13,7 @@ from wri_kas_bot.config import get_settings
 from wri_kas_bot.database import Database
 from wri_kas_bot.drive import GoogleDriveClient
 from wri_kas_bot.fifo import allocate_dues
-from wri_kas_bot.repository import TransactionRepository
+from wri_kas_bot.repository import MemberRepository, MonthlyDuesRepository, TransactionRepository
 from wri_kas_bot.sheets import GoogleSheetsClient
 
 logger = logging.getLogger(__name__)
@@ -51,43 +51,64 @@ def reconcile_backlog(
         logger.info("No stranded transactions found in backlog.")
         return 0
 
-    print(f"\nFound {len(candidates)} stranded transactions in backlog:")
+    logger.info("Found %d stranded transactions in backlog:", len(candidates))
     for c in candidates:
         name_phone = f"{c['member_name']} ({c['phone_number']})"
-        print(f" - #{c['id']} | Member: {name_phone} | Nominal: Rp {c['amount_paid']:,}")
+        logger.info(
+            " - #%s | Member: %s | Nominal: Rp %s",
+            c["id"],
+            name_phone,
+            f"{c['amount_paid']:,}",
+        )
 
     if dry_run:
-        print("\n[DRY RUN] Preview mode active. No changes committed to database or Google Sheets.")
+        logger.info(
+            "[DRY RUN] Preview mode active. No changes committed to database or Google Sheets."
+        )
         return len(candidates)
 
-    print("\n[APPLY] Committing FIFO allocations and syncing with Google Sheets...")
+    logger.info("[APPLY] Committing FIFO allocations and syncing with Google Sheets...")
     processed_count = 0
     with db.transaction() as conn:
         tx_repo = TransactionRepository(conn)
+        member_repo = MemberRepository(conn)
+        dues_repo = MonthlyDuesRepository(conn)
 
         for c in candidates:
             tx_id = c["id"]
             member_id = c["member_id"]
             nominal = c["amount_paid"] or c["ocr_amount"] or settings.due_amount_per_month
+            member = member_repo.get_by_id(member_id)
+            if not member:
+                continue
 
+            unpaid_dues = dues_repo.get_unpaid(member_id, year=2026)
             alloc_result = allocate_dues(
-                conn=conn,
-                member_id=member_id,
+                unpaid_months=unpaid_dues,
                 amount_paid=nominal,
-                payment_method=c["payment_method"],
-                due_amount=settings.due_amount_per_month,
-                year=2026,
-                transaction_id=tx_id,
+                current_balance=member["balance"],
+                due_per_month=settings.due_amount_per_month,
             )
 
-            months_list = [m[1] for m in alloc_result.months_filled]
+            unpaid_map = {(d.year, d.month_index): d for d in unpaid_dues}
+            for y, m_idx in alloc_result.months_filled:
+                due_item = unpaid_map.get((y, m_idx))
+                if due_item:
+                    dues_repo.mark_paid(
+                        due_id=due_item.id,
+                        transaction_id=tx_id,
+                        payment_method=c["payment_method"],
+                        proof_url=c["proof_drive_url"] or "",
+                    )
+
+            months_list = alloc_result.cleared_month_names
+            member_repo.update_balance(member_id, alloc_result.balance_after)
             tx_repo.approve(
                 tx_id=tx_id,
                 balance_before=alloc_result.balance_before,
                 balance_after=alloc_result.balance_after,
                 months_filled=months_list,
                 approved_by="CLI_RECONCILER",
-                amount_paid=nominal,
             )
 
             # Sync to Google Sheets
@@ -122,7 +143,7 @@ def reconcile_backlog(
             )
             processed_count += 1
 
-    print(f"Successfully reconciled {processed_count} transactions.")
+    logger.info("Successfully reconciled %d transactions.", processed_count)
     return processed_count
 
 

@@ -42,8 +42,8 @@ async def execute_billing_blast(
     current_year = today.year
     current_month_index = today.month
 
-    # Beginning of current calendar month formatted as ISO string
-    cycle_start_str = f"{current_year:04d}-{current_month_index:02d}-01T00:00:00"
+    # Beginning of current calendar month formatted with space for SQLite timestamp comparison
+    cycle_start_str = f"{current_year:04d}-{current_month_index:02d}-01 00:00:00"
 
     dispatched_count = 0
     with db.connect() as conn:
@@ -86,7 +86,8 @@ async def execute_billing_blast(
             f"📋 *Tunggakan Anda:* {unpaid_names} ({unpaid_count} bulan)\n"
             f"💳 *Saldo Kas Anda:* Rp {balance:,}\n"
             f"💰 *Total Tagihan Bersih:* Rp {net_bill:,}\n\n"
-            f"Silakan transfer ke rekening resmi Bank Jago: *1045 2819 0921* "
+            f"Silakan transfer ke rekening resmi Bank Jago: *{settings.bank_account_number}* "
+            f"({settings.bank_account_holder}). "
             f"Setelah transfer, kirimkan foto bukti pembayaran ke nomor ini "
             f"untuk verifikasi otomatis! ✨"
         )
@@ -126,12 +127,21 @@ async def execute_monthly_ledger_sync(
     # Calculate previous month period
     first_of_this_month = today.replace(day=1)
     prev_month_last_day = first_of_this_month - datetime.timedelta(days=1)
+    prev_month_first_day = prev_month_last_day.replace(day=1)
     prev_month_name = prev_month_last_day.strftime("%B")
+
+    start_date_str = f"{prev_month_first_day.strftime('%Y-%m-%d')} 00:00:00"
+    end_date_str = f"{prev_month_last_day.strftime('%Y-%m-%d')} 23:59:59"
 
     with db.connect() as conn:
         cursor = conn.execute(
-            "SELECT payment_method, SUM(amount_paid) FROM transactions "
-            "WHERE status = 'APPROVED' GROUP BY payment_method"
+            """
+            SELECT payment_method, SUM(amount_paid) FROM transactions
+            WHERE status = 'APPROVED'
+              AND created_at >= ? AND created_at <= ?
+            GROUP BY payment_method
+            """,
+            (start_date_str, end_date_str),
         )
         totals = {r[0]: r[1] or 0 for r in cursor.fetchall()}
 

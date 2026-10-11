@@ -42,7 +42,8 @@ class OutboxWorker:
 
     async def process_transaction(self, tx_id: int) -> bool:
         """Process outbox synchronization for a single transaction record."""
-        with self.db.transaction() as conn:
+        # 1. Read transaction state in non-blocking read connection
+        with self.db.connect() as conn:
             tx_repo = TransactionRepository(conn)
             member_repo = MemberRepository(conn)
 
@@ -60,143 +61,148 @@ class OutboxWorker:
             payment_method = tx["payment_method"]
             amount_paid = tx["amount_paid"]
             balance_after = tx["balance_after"]
-            months_filled = json.loads(tx["months_filled"] or "[]")
+            balance_before = tx["balance_before"]
+            created_at = tx["created_at"]
+            updated_at = tx["updated_at"]
+            approved_by = tx["approved_by"]
+            months_raw = tx["months_filled"]
+            months_filled = (
+                months_raw if isinstance(months_raw, list) else json.loads(months_raw or "[]")
+            )
             proof_drive_url = tx["proof_drive_url"]
             local_image_path = tx["local_image_path"]
+            raw_cells = tx["sheets_cells_filled"] or []
 
-            try:
-                # 1. Drive Archival for Non-Cash Receipts
-                if payment_method != "CASH" and not proof_drive_url and local_image_path:
-                    img_path = Path(local_image_path)
-                    if img_path.is_file():
-                        img_bytes = img_path.read_bytes()
-                        filename = format_drive_filename(
-                            member_phone,
-                            member_name,
-                            tx["created_at"] or "20261011",
-                        )
-                        proof_drive_url = self.drive_client.upload_file(img_bytes, filename)
+        try:
+            # 2. Drive Archival for Non-Cash Receipts (External HTTP - No DB lock held)
+            if payment_method != "CASH" and not proof_drive_url and local_image_path:
+                img_path = Path(local_image_path)
+                if img_path.is_file():
+                    img_bytes = img_path.read_bytes()
+                    filename = format_drive_filename(
+                        member_phone,
+                        member_name,
+                        created_at or "20261011",
+                    )
+                    proof_drive_url = self.drive_client.upload_file(img_bytes, filename)
+                    with self.db.transaction() as conn:
                         conn.execute(
                             "UPDATE transactions SET proof_drive_url = ? WHERE id = ?",
                             (proof_drive_url, tx_id),
                         )
 
-                proof_cell_val = (
-                    "Tunai" if payment_method == "CASH" else (proof_drive_url or "Via Bot")
+            proof_cell_val = "Tunai" if payment_method == "CASH" else (proof_drive_url or "Via Bot")
+
+            # 3. Forward Sync for Approved Transactions (External HTTP - No DB lock held)
+            if tx_status == "APPROVED":
+                recorded_cells: list[str] = []
+                for item in months_filled:
+                    if isinstance(item, list | tuple):
+                        month_name = str(item[1]) if len(item) > 1 else str(item[0])
+                    else:
+                        month_name = str(item)
+
+                    coord = self.sheets_client.update_payment_month(
+                        name=member_name,
+                        month=month_name,
+                        proof_url=proof_cell_val,
+                    )
+                    recorded_cells.append(coord)
+
+                self.sheets_client.update_member_balance(
+                    phone=member_phone,
+                    balance=balance_after,
                 )
 
-                # 2. Approved Transaction Forward Sync
-                if tx_status == "APPROVED":
-                    recorded_cells: list[str] = []
-                    for item in months_filled:
-                        # item can be "Februari" or [2026, 2] or (year, month_name)
-                        if isinstance(item, list | tuple):
-                            month_name = str(item[1]) if len(item) > 1 else str(item[0])
-                        else:
-                            month_name = str(item)
+                months_str = ", ".join(
+                    str(m[1]) if isinstance(m, list | tuple) and len(m) > 1 else str(m)
+                    for m in months_filled
+                )
+                log_data: dict[str, Any] = {
+                    "Id": tx["id"],
+                    "Timestamp": created_at,
+                    "Nama": member_name,
+                    "Nomor HP": member_phone,
+                    "Nominal": amount_paid,
+                    "Bulan Terisi": months_str,
+                    "Sisa Saldo": balance_after,
+                    "Status": "APPROVED",
+                    "Bukti URL": proof_cell_val,
+                    "Approved By": approved_by or "Bendahara",
+                    "Keterangan": f"Via Bot ({payment_method})",
+                }
+                self.sheets_client.append_log_transaksi(log_data)
 
-                        coord = self.sheets_client.update_payment_month(
-                            name=member_name,
-                            month=month_name,
-                            proof_url=proof_cell_val,
-                        )
-                        recorded_cells.append(coord)
-
-                    # Update member balance in data_pengurus
-                    self.sheets_client.update_member_balance(
-                        phone=member_phone,
-                        balance=balance_after,
-                    )
-
-                    # Append to log_transaksi audit trail
-                    months_str = ", ".join(
-                        str(m[1]) if isinstance(m, list | tuple) and len(m) > 1 else str(m)
-                        for m in months_filled
-                    )
-                    log_data: dict[str, Any] = {
-                        "Id": tx["id"],
-                        "Timestamp": tx["created_at"],
-                        "Nama": member_name,
-                        "Nomor HP": member_phone,
-                        "Nominal": amount_paid,
-                        "Bulan Terisi": months_str,
-                        "Sisa Saldo": balance_after,
-                        "Status": "APPROVED",
-                        "Bukti URL": proof_cell_val,
-                        "Approved By": tx["approved_by"] or "Bendahara",
-                        "Keterangan": f"Via Bot ({payment_method})",
-                    }
-                    self.sheets_client.append_log_transaksi(log_data)
-
-                    # Save filled cells & mark SYNCED
-                    cells_json = json.dumps([{"coord": c} for c in recorded_cells])
+                # Commit SYNCED status in short atomic SQLite write (<5ms)
+                cells_json = json.dumps([{"coord": c} for c in recorded_cells])
+                with self.db.transaction() as conn:
                     conn.execute(
                         "UPDATE transactions SET sheets_cells_filled = ?, sync_status = 'SYNCED', "
                         "sync_error = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                         (cells_json, tx_id),
                     )
-                    logger.info("Successfully synced approved transaction #%d to Sheets", tx_id)
-                    return True
+                logger.info("Successfully synced approved transaction #%d to Sheets", tx_id)
+                return True
 
-                # 3. Reverted Transaction Reverse Sync (Undo)
-                elif tx_status == "REVERTED":
-                    # Clear cells previously filled
-                    raw_cells = tx["sheets_cells_filled"] or "[]"
-                    cells_to_clear: list[str] = []
-                    try:
-                        parsed = json.loads(raw_cells)
-                        for c in parsed:
-                            if isinstance(c, dict) and "coord" in c:
-                                cells_to_clear.append(c["coord"])
-                            elif isinstance(c, dict) and "sheet" in c and "cell" in c:
-                                cells_to_clear.append(f"'{c['sheet']}'!{c['cell']}")
-                            elif isinstance(c, str):
-                                cells_to_clear.append(c)
-                    except Exception:
-                        pass
-
-                    if cells_to_clear:
-                        self.sheets_client.batch_clear_cells(cells_to_clear)
-
-                    # Restore balance in data_pengurus
-                    self.sheets_client.update_member_balance(
-                        phone=member_phone,
-                        balance=tx["balance_before"],
+            # 4. Reverse Sync for Reverted Transactions (Undo Rollback - No DB lock held)
+            elif tx_status == "REVERTED":
+                cells_to_clear: list[str] = []
+                try:
+                    parsed = raw_cells if isinstance(raw_cells, list) else json.loads(raw_cells)
+                    for c in parsed:
+                        if isinstance(c, dict) and "coord" in c:
+                            cells_to_clear.append(c["coord"])
+                        elif isinstance(c, dict) and "sheet" in c and "cell" in c:
+                            cells_to_clear.append(f"'{c['sheet']}'!{c['cell']}")
+                        elif isinstance(c, str):
+                            cells_to_clear.append(c)
+                except (json.JSONDecodeError, TypeError) as err:
+                    logger.warning(
+                        "Could not parse sheets_cells_filled JSON for tx #%d: %s", tx_id, err
                     )
 
-                    # Append rollback note to log_transaksi
-                    log_data = {
-                        "Id": tx["id"],
-                        "Timestamp": tx["updated_at"] or tx["created_at"],
-                        "Nama": member_name,
-                        "Nomor HP": member_phone,
-                        "Nominal": -amount_paid,
-                        "Bulan Terisi": "ROLLBACK",
-                        "Sisa Saldo": tx["balance_before"],
-                        "Status": "REVERTED",
-                        "Bukti URL": proof_cell_val,
-                        "Approved By": tx["approved_by"] or "Bendahara",
-                        "Keterangan": "Transaksi Dibatalkan (/undo)",
-                    }
-                    self.sheets_client.append_log_transaksi(log_data)
+                if cells_to_clear:
+                    self.sheets_client.batch_clear_cells(cells_to_clear)
 
+                self.sheets_client.update_member_balance(
+                    phone=member_phone,
+                    balance=balance_before,
+                )
+
+                log_data = {
+                    "Id": tx["id"],
+                    "Timestamp": updated_at or created_at,
+                    "Nama": member_name,
+                    "Nomor HP": member_phone,
+                    "Nominal": -amount_paid,
+                    "Bulan Terisi": "ROLLBACK",
+                    "Sisa Saldo": balance_before,
+                    "Status": "REVERTED",
+                    "Bukti URL": proof_cell_val,
+                    "Approved By": approved_by or "Bendahara",
+                    "Keterangan": "Transaksi Dibatalkan (/undo)",
+                }
+                self.sheets_client.append_log_transaksi(log_data)
+
+                with self.db.transaction() as conn:
                     conn.execute(
                         "UPDATE transactions SET sync_status = 'SYNCED', sync_error = NULL, "
                         "updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                         (tx_id,),
                     )
-                    logger.info("Successfully reverse-synced reverted transaction #%d", tx_id)
-                    return True
+                logger.info("Successfully reverse-synced reverted transaction #%d", tx_id)
+                return True
 
-            except Exception as exc:
-                err_msg = str(exc)
-                logger.error("Failed to sync transaction #%d: %s", tx_id, err_msg)
+        except Exception as exc:
+            err_msg = str(exc)
+            logger.error("Failed to sync transaction #%d: %s", tx_id, err_msg)
+            with self.db.transaction() as conn:
                 conn.execute(
                     "UPDATE transactions SET retry_count = retry_count + 1, sync_error = ?, "
                     "updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                     (err_msg, tx_id),
                 )
-                return False
+            return False
 
         return False
 
@@ -216,6 +222,8 @@ class OutboxWorker:
             if success:
                 processed += 1
         return processed
+
+    run_outbox_cycle = process_pending_tasks
 
     async def run_loop(
         self,

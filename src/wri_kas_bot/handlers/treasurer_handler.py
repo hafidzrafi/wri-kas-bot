@@ -10,9 +10,9 @@ from typing import Any
 from wri_kas_bot.config import get_settings
 from wri_kas_bot.database import Database
 from wri_kas_bot.evolution import EvolutionClient
-from wri_kas_bot.fifo import allocate_dues
+from wri_kas_bot.fifo import MONTH_INDEX_TO_NAME, allocate_dues
 from wri_kas_bot.models import WebhookPayload, parse_amount
-from wri_kas_bot.repository import MemberRepository, TransactionRepository
+from wri_kas_bot.repository import MemberRepository, MonthlyDuesRepository, TransactionRepository
 from wri_kas_bot.undo import execute_koreksi, execute_undo
 
 logger = logging.getLogger(__name__)
@@ -30,12 +30,8 @@ async def handle_treasurer(
     sender_phone = payload.sender_phone
     sender_jid = payload.sender_jid
 
-    # 1. Authorization Guard
-    if (
-        sender_phone != settings.bendahara_number
-        and sender_jid != settings.bendahara_jid
-        and not sender_jid.startswith(settings.bendahara_number)
-    ):
+    # 1. Authorization Guard (Strict canonical equality)
+    if sender_phone != settings.bendahara_number and sender_jid != settings.bendahara_jid:
         logger.warning("Unauthorized moderation attempt from %s", sender_jid)
         return {"status": "unauthorized"}
 
@@ -43,10 +39,7 @@ async def handle_treasurer(
     cmd = raw_text.split()[0].lower() if raw_text else ""
 
     # Quoted context extraction for swipe-reply
-    quoted_id: str | None = None
-    msg_data = payload.data.message
-    if msg_data and msg_data.extended_text_message and msg_data.extended_text_message.context_info:
-        quoted_id = msg_data.extended_text_message.context_info.stanza_id
+    quoted_id: str | None = payload.quoted_stanza_id
 
     # 2. Command: /acc or /approve
     if cmd in ("/acc", "/approve"):
@@ -126,26 +119,38 @@ async def _handle_acc(
     with db.transaction() as conn:
         tx_repo = TransactionRepository(conn)
         member_repo = MemberRepository(conn)
+        dues_repo = MonthlyDuesRepository(conn)
         member = member_repo.get_by_id(member_id)
+        if not member:
+            return {"status": "member_not_found"}
 
+        unpaid_dues = dues_repo.get_unpaid(member_id, year=2026)
         alloc_result = allocate_dues(
-            conn=conn,
-            member_id=member_id,
+            unpaid_months=unpaid_dues,
             amount_paid=final_nominal,
-            payment_method=tx["payment_method"],
-            due_amount=settings.due_amount_per_month,
-            year=2026,
-            transaction_id=tx_id,
+            current_balance=member["balance"],
+            due_per_month=settings.due_amount_per_month,
         )
 
-        months_list = [m[1] for m in alloc_result.months_filled]
+        unpaid_map = {(d.year, d.month_index): d for d in unpaid_dues}
+        for y, m_idx in alloc_result.months_filled:
+            due_item = unpaid_map.get((y, m_idx))
+            if due_item:
+                dues_repo.mark_paid(
+                    due_id=due_item.id,
+                    transaction_id=tx_id,
+                    payment_method=tx["payment_method"],
+                    proof_url=tx["proof_drive_url"] or "",
+                )
+
+        months_list = alloc_result.cleared_month_names
+        member_repo.update_balance(member_id, alloc_result.balance_after)
         tx_repo.approve(
             tx_id=tx_id,
             balance_before=alloc_result.balance_before,
             balance_after=alloc_result.balance_after,
             months_filled=months_list,
             approved_by=settings.bendahara_jid,
-            amount_paid=final_nominal,
         )
 
     # Notify Member
@@ -206,7 +211,7 @@ async def _handle_reject(
         tx_repo = TransactionRepository(conn)
         member_repo = MemberRepository(conn)
         member = member_repo.get_by_id(member_id)
-        tx_repo.reject(tx_id=tx_id, reason=reason, rejected_by=settings.bendahara_jid)
+        tx_repo.reject(tx_id=tx_id, reason=reason, approved_by=settings.bendahara_jid)
 
     member_msg = (
         f"❌ *BUKTI KAS DITOLAK*\n\n"
@@ -252,6 +257,7 @@ async def _handle_cash(
     with db.transaction() as conn:
         member_repo = MemberRepository(conn)
         tx_repo = TransactionRepository(conn)
+        dues_repo = MonthlyDuesRepository(conn)
         member = member_repo.get_by_phone(phone_input)
 
         if not member:
@@ -271,24 +277,33 @@ async def _handle_cash(
             ocr_bank="Tunai",
         )
 
+        unpaid_dues = dues_repo.get_unpaid(member_id, year=2026)
         alloc_result = allocate_dues(
-            conn=conn,
-            member_id=member_id,
+            unpaid_months=unpaid_dues,
             amount_paid=nominal,
-            payment_method="CASH",
-            due_amount=settings.due_amount_per_month,
-            year=2026,
-            transaction_id=tx_id,
+            current_balance=member["balance"],
+            due_per_month=settings.due_amount_per_month,
         )
 
-        months_list = [m[1] for m in alloc_result.months_filled]
+        unpaid_map = {(d.year, d.month_index): d for d in unpaid_dues}
+        for y, m_idx in alloc_result.months_filled:
+            due_item = unpaid_map.get((y, m_idx))
+            if due_item:
+                dues_repo.mark_paid(
+                    due_id=due_item.id,
+                    transaction_id=tx_id,
+                    payment_method="CASH",
+                    proof_url="Tunai",
+                )
+
+        months_list = alloc_result.cleared_month_names
+        member_repo.update_balance(member_id, alloc_result.balance_after)
         tx_repo.approve(
             tx_id=tx_id,
             balance_before=alloc_result.balance_before,
             balance_after=alloc_result.balance_after,
             months_filled=months_list,
             approved_by=settings.bendahara_jid,
-            amount_paid=nominal,
         )
 
     months_str = ", ".join(months_list) if months_list else "Masuk saldo simpanan"
@@ -337,16 +352,23 @@ async def _handle_undo(
         )
         return {"status": "not_found"}
 
-    result = execute_undo(db, tx_id=tx["id"], requested_by=settings.bendahara_jid)
+    with db.connect() as conn:
+        result = execute_undo(conn, transaction_id=tx["id"], raise_on_error=False)
+
     if not result.success:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text=f"⚠️ Gagal undo transaksi #{tx['id']}: {result.error_message}",
+            text=f"⚠️ Gagal undo transaksi #{tx['id']}: {result.message}",
         )
-        return {"status": "undo_failed", "error": result.error_message}
+        return {"status": "undo_failed", "error": result.message}
 
     with db.connect() as conn:
         member = MemberRepository(conn).get_by_id(tx["member_id"])
+
+    reopened_names = [
+        MONTH_INDEX_TO_NAME.get(m[1], f"Bulan-{m[1]}") for m in result.reverted_months
+    ]
+    reopened_str = ", ".join(reopened_names) if reopened_names else "Tidak ada bulan (hanya saldo)"
 
     member_msg = (
         f"⚠️ *PEMBATALAN TRANSAKSI KAS*\n\n"
@@ -360,7 +382,7 @@ async def _handle_undo(
     treasurer_msg = (
         f"✅ Transaksi #{tx['id']} berhasil di-undo.\n"
         f"Saldo {member['name']} dikembalikan ke Rp {result.restored_balance:,}.\n"
-        f"Bulan dibuka kembali: {', '.join(result.months_reopened)}."
+        f"Bulan dibuka kembali: {reopened_str}."
     )
     await evo.send_text(recipient=settings.bendahara_jid, text=treasurer_msg)
     return {"status": "undone", "transaction_id": tx["id"]}
@@ -408,28 +430,36 @@ async def _handle_koreksi(
         )
         return {"status": "not_found"}
 
-    result = execute_koreksi(
-        db,
-        tx_id=tx["id"],
-        new_amount=new_nominal,
-        requested_by=settings.bendahara_jid,
-        due_amount=settings.due_amount_per_month,
-    )
+    with db.connect() as conn:
+        result = execute_koreksi(
+            conn,
+            transaction_id=tx["id"],
+            new_amount=new_nominal,
+            approved_by=settings.bendahara_jid,
+            due_per_month=settings.due_amount_per_month,
+            raise_on_error=False,
+        )
+
     if not result.success:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text=f"⚠️ Gagal koreksi transaksi #{tx['id']}: {result.error_message}",
+            text=f"⚠️ Gagal koreksi transaksi #{tx['id']}: {result.message}",
         )
-        return {"status": "koreksi_failed", "error": result.error_message}
+        return {"status": "koreksi_failed", "error": result.message}
 
     with db.connect() as conn:
         member = MemberRepository(conn).get_by_id(tx["member_id"])
 
+    filled_names = [
+        MONTH_INDEX_TO_NAME.get(m[1], f"Bulan-{m[1]}") for m in result.new_months_filled
+    ]
+    filled_str = ", ".join(filled_names) if filled_names else "Masuk saldo simpanan"
+
     treasurer_msg = (
         f"✅ Koreksi transaksi #{tx['id']} ({member['name']}) berhasil!\n"
         f"Nominal baru: Rp {new_nominal:,}\n"
-        f"Bulan terisi baru: {', '.join(result.new_months_filled)}\n"
-        f"Sisa saldo: Rp {result.restored_balance:,}"
+        f"Bulan terisi baru: {filled_str}\n"
+        f"Sisa saldo: Rp {result.new_balance:,}"
     )
     await evo.send_text(recipient=settings.bendahara_jid, text=treasurer_msg)
     return {"status": "koreksi_success", "transaction_id": tx["id"]}
