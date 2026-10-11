@@ -24,11 +24,11 @@ class Settings(BaseSettings):
 
     # 1. Database & Storage Configuration
     database_url: str = Field(
-        default="sqlite+aiosqlite:///data/kas_wri.db",
+        default="sqlite:///data/kas_wri.db",
         validation_alias=AliasChoices(
             "DATABASE_URL", "DATABASE_PATH", "database_url", "database_path"
         ),
-        description="SQLite database path or SQLAlchemy URL. Defaults to local data/kas_wri.db.",
+        description="SQLite database path or URL. Defaults to local data/kas_wri.db.",
     )
     receipts_dir: str = Field(
         default="data/receipts",
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
 
     # 3. WhatsApp Numbers & JIDs
     bendahara_number: str = Field(
-        default="6281100000001",
+        default="6281100000099",
         validation_alias=AliasChoices("BENDAHARA_NUMBER", "bendahara_number"),
         description="Digits-only phone number of the active treasurer.",
     )
@@ -65,14 +65,14 @@ class Settings(BaseSettings):
         description="Digits-only phone number of the bot WhatsApp account.",
     )
     bendahara_jid: str = Field(
-        default="6281100000001@s.whatsapp.net",
+        default="6281100000099@s.whatsapp.net",
         validation_alias=AliasChoices("BENDAHARA_JID", "bendahara_jid"),
         description="WhatsApp JID of active treasurer.",
     )
 
     # 4. Google Workspace Integration
     google_spreadsheet_id: str = Field(
-        default="1qk5cPwwoMWhUHoYolVMgEex6YEEkpB4V1FQr5cWMU6k",
+        default="mock-spreadsheet-id",
         validation_alias=AliasChoices(
             "SPREADSHEET_ID", "GOOGLE_SPREADSHEET_ID", "google_spreadsheet_id"
         ),
@@ -97,6 +97,16 @@ class Settings(BaseSettings):
         default="https://example.com/qris.jpg",
         validation_alias=AliasChoices("QRIS_FILE_URL", "qris_file_url"),
         description="Public URL to organization QRIS payment image.",
+    )
+    bank_account_number: str = Field(
+        default="1000 0000 0001",
+        validation_alias=AliasChoices("BANK_ACCOUNT_NUMBER", "bank_account_number"),
+        description="Bank account number displayed for dues payments.",
+    )
+    bank_account_holder: str = Field(
+        default="Kas WRI / Bendahara",
+        validation_alias=AliasChoices("BANK_ACCOUNT_HOLDER", "bank_account_holder"),
+        description="Bank account holder name displayed for dues payments.",
     )
 
     # 5. Multimodal Vision AI

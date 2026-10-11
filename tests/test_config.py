@@ -15,7 +15,7 @@ def test_default_settings_instantiation():
     assert settings.billing_minute == 0
     assert "mock" in settings.evolution_api_key.lower() or len(settings.evolution_api_key) > 0
     assert "mock" in settings.gemini_api_key.lower() or len(settings.gemini_api_key) > 0
-    assert settings.bendahara_number == "6281100000001"
+    assert settings.bendahara_number == "6281100000099"
     assert settings.bot_number == "6281100000002"
 
 

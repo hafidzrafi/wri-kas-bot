@@ -384,13 +384,16 @@ class TransactionRepository:
         ocr_amount: int | None = None,
         ocr_bank: str | None = None,
         wa_message_id: str | None = None,
+        balance_before: int = 0,
+        balance_after: int = 0,
     ) -> int:
         cur = self.conn.execute(
             """
             INSERT INTO transactions (
                 member_id, amount_paid, payment_method, local_image_path,
-                ocr_amount, ocr_bank, wa_message_id, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')
+                ocr_amount, ocr_bank, wa_message_id, status,
+                balance_before, balance_after
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?)
             """,
             (
                 member_id,
@@ -400,6 +403,8 @@ class TransactionRepository:
                 ocr_amount,
                 ocr_bank,
                 wa_message_id,
+                balance_before,
+                balance_after,
             ),
         )
         return int(cur.lastrowid)

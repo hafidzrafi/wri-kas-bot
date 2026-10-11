@@ -406,8 +406,8 @@ def parse_amount(text: str) -> int | None:
     """Extract integer amount from string, stripping dots, commas, currency symbols, and cents."""
     if not text:
         return None
-    # Strip decimal cents: ,00 (Indonesian) or .00 (English 2-digit cents)
-    cleaned = re.sub(r"[,.]00(?=\s|$|[^\d])", "", text.strip())
+    # Strip decimal cents: ,00 or ,50 (Indonesian) or .00 (English 2-digit cents)
+    cleaned = re.sub(r"[,.]\d{2}(?=\s|$|[^\d])", "", text.strip())
     digits = re.sub(r"[^\d]", "", cleaned)
     return int(digits) if digits else None
 

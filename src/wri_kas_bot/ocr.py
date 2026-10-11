@@ -43,16 +43,22 @@ PROMPT_RECEIPT_EXTRACTION = (
 class OCRReceiptResult:
     """Structured extraction result from receipt OCR analysis."""
 
-    amount: int | None
-    date: str | None
-    sender_name: str | None
-    bank: str | None
+    amount: int | None = None
+    date: str | None = None
+    sender_name: str | None = None
+    bank: str | None = None
     raw_response: dict[str, Any] = field(default_factory=dict)
+    raw_text: str = ""
+    nominal: int | None = None
 
-    @property
-    def nominal(self) -> int | None:
-        """Alias for amount to support diverse consumer naming."""
-        return self.amount
+    def __post_init__(self) -> None:
+        if self.nominal is not None and self.amount is None:
+            self.amount = self.nominal
+        elif self.amount is not None and self.nominal is None:
+            self.nominal = self.amount
+
+
+OCRResult = OCRReceiptResult
 
 
 def _detect_mime_type(image_bytes: bytes) -> str:
