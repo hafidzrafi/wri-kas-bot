@@ -49,6 +49,11 @@ class OCRReceiptResult:
     bank: str | None
     raw_response: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def nominal(self) -> int | None:
+        """Alias for amount to support diverse consumer naming."""
+        return self.amount
+
 
 def _detect_mime_type(image_bytes: bytes) -> str:
     """Sniff MIME type from image magic bytes, defaulting to image/jpeg."""
@@ -197,3 +202,14 @@ async def extract_receipt_data(image_bytes: bytes, api_key: str) -> OCRReceiptRe
         bank=bank_val,
         raw_response=raw_dict,
     )
+
+
+class ReceiptOCR:
+    """Object-oriented wrapper around Gemini receipt extraction."""
+
+    def __init__(self, api_key: str | None = None) -> None:
+        self.api_key = api_key or ""
+
+    async def extract_receipt(self, image_bytes: bytes) -> OCRReceiptResult:
+        """Extract receipt transaction details from image bytes."""
+        return await extract_receipt_data(image_bytes, self.api_key)

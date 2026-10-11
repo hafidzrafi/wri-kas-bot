@@ -333,6 +333,22 @@ class WebhookPayload(BaseModel):
     def remote_jid(self) -> str:
         return self.data.key.remote_jid
 
+    @property
+    def sender_jid(self) -> str:
+        return self.data.key.remote_jid
+
+    @property
+    def text_body(self) -> str:
+        return self.data.message_text
+
+    @property
+    def has_media(self) -> bool:
+        return self.data.is_image
+
+    @property
+    def message_id(self) -> str:
+        return self.data.key.id
+
     def quoted_no_pengurus(self) -> str | None:
         return self.data.quoted_no_pengurus()
 
