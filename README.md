@@ -1,6 +1,6 @@
 # wri-kas-bot
 
-Automates monthly organization dues via WhatsApp with local SQLite WAL storage and asynchronous Google Sheets outbox synchronization.
+Automates monthly organization dues for Workshop Riset Informatika (WRI) via WhatsApp with local SQLite WAL storage and asynchronous Google Sheets outbox synchronization.
 
 ## Overview
 
@@ -16,7 +16,7 @@ Automates monthly organization dues via WhatsApp with local SQLite WAL storage a
 ```text
 Evolution API v2 (WhatsApp Gateway)
        │
-       ▼ Webhook: POST /webhook
+       ▼ Webhook: POST /webhook or /webhook/wri
 FastAPI Webhook Receiver
        │
        ├─► Gemini Flash Vision (Receipt OCR)
@@ -104,23 +104,32 @@ uv run ruff format --check .
 # Run test suite
 uv run pytest
 
-# Run web service
-uv run uvicorn wri_kas_bot.app:app --host 0.0.0.0 --port 8000 --reload
+# Run service (web server, outbox worker, and billing scheduler)
+uv run python -m wri_kas_bot.main
 
 # Run stranded transaction reconciler CLI
 uv run python -m wri_kas_bot.reconcile --dry-run
 uv run python -m wri_kas_bot.reconcile --apply
 ```
 
-## Docker Deployment
+## Deployment
+
+### Production
+
+Connects to existing `wri_network` and Evolution API gateway on port 8090:
 
 ```bash
-# Create shared docker network if not already present
+# Ensure shared docker network exists
 docker network create wri_network || true
 
-# Build and start container in detached mode
+# Build and start container
 docker compose up -d --build
+```
 
-# View container logs
-docker compose logs -f
+### Local Development
+
+For standalone testing with local Evolution API, PostgreSQL, and Redis:
+
+```bash
+docker compose -f docker-compose.standalone.yml up -d --build
 ```
