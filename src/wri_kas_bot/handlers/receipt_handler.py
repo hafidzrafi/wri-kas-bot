@@ -35,10 +35,21 @@ async def handle_receipt(
     sender_phone = payload.sender_phone
     sender_jid = payload.sender_jid
 
-    # 1. Verify Active Member
     with db.connect() as conn:
         member_repo = MemberRepository(conn)
         member = member_repo.get_by_phone(sender_phone)
+
+    if not member or member["status"] != "Aktif":
+        try:
+            from wri_kas_bot.sync import sync_members_from_sheets
+
+            synced = sync_members_from_sheets(db)
+            if synced > 0:
+                with db.connect() as conn:
+                    member_repo = MemberRepository(conn)
+                    member = member_repo.get_by_phone(sender_phone)
+        except Exception as exc:
+            logger.warning("On-demand member sync failed in receipt_handler: %s", exc)
 
     if not member or member["status"] != "Aktif":
         msg = (

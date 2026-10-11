@@ -55,7 +55,7 @@ async def handle_treasurer(
 
     # 5. Command: /undo
     elif cmd == "/undo":
-        return await _handle_undo(db, evo, quoted_id, settings)
+        return await _handle_undo(db, evo, raw_text, quoted_id, settings)
 
     # 6. Command: /koreksi
     elif cmd == "/koreksi":
@@ -82,16 +82,33 @@ async def _handle_acc(
 ) -> dict[str, Any]:
     """Handle /acc approval swipe-reply."""
     parts = text.split()
+    target_tx_id: int | None = None
     explicit_nominal: int | None = None
-    if len(parts) > 1:
-        explicit_nominal = parse_amount(parts[1])
+
+    if len(parts) == 2:
+        val = parse_amount(parts[1])
+        if val is not None:
+            if val < 1000:
+                target_tx_id = val
+            else:
+                explicit_nominal = val
+    elif len(parts) >= 3:
+        val1 = parse_amount(parts[1])
+        val2 = parse_amount(parts[2])
+        if val1 is not None and val1 < 1000:
+            target_tx_id = val1
+            explicit_nominal = val2
+        else:
+            explicit_nominal = val1
 
     with db.connect() as conn:
         tx_repo = TransactionRepository(conn)
         tx = None
-        if quoted_id:
+        if target_tx_id:
+            tx = tx_repo.get_by_id(target_tx_id)
+        if not tx and quoted_id:
             tx = tx_repo.get_by_notification_msg_id(quoted_id)
-        if not tx:
+        if not tx and not target_tx_id:
             # Fallback to latest pending transaction
             rows = conn.execute(
                 "SELECT * FROM transactions WHERE status = 'PENDING' ORDER BY id DESC LIMIT 1"
@@ -103,7 +120,17 @@ async def _handle_acc(
             recipient=settings.bendahara_jid,
             text="❌ Tidak ada transaksi PENDING yang sesuai untuk di-acc.",
         )
-        return {"status": "not_found"}
+        return {"status": "not_found", "detail": "Transaksi tidak ditemukan"}
+
+    if tx["status"] in ("APPROVED", "ROLLED_BACK", "REJECTED"):
+        await evo.send_text(
+            recipient=settings.bendahara_jid,
+            text=f"⚠️ Transaksi #{tx['id']} sudah diproses sebelumnya (Status: {tx['status']}).",
+        )
+        return {
+            "status": "error",
+            "detail": f"Transaksi #{tx['id']} sudah diproses sebelumnya (Status: {tx['status']})",
+        }
 
     final_nominal = explicit_nominal or tx["ocr_amount"]
     if not final_nominal or final_nominal <= 0:
@@ -183,16 +210,27 @@ async def _handle_reject(
     quoted_id: str | None,
     settings: Any,
 ) -> dict[str, Any]:
-    """Handle /reject swipe-reply."""
-    parts = text.split(maxsplit=1)
-    reason = parts[1].strip() if len(parts) > 1 else "Bukti transfer tidak valid/tidak terbaca"
+    """Handle /reject swipe-reply or direct /reject [id] [reason]."""
+    parts = text.split()
+    target_tx_id: int | None = None
+    reason: str = "Bukti transfer tidak valid/tidak terbaca"
+
+    if len(parts) > 1:
+        if parts[1].isdigit():
+            target_tx_id = int(parts[1])
+            if len(parts) > 2:
+                reason = " ".join(parts[2:]).strip()
+        else:
+            reason = text.split(maxsplit=1)[1].strip()
 
     with db.connect() as conn:
         tx_repo = TransactionRepository(conn)
         tx = None
-        if quoted_id:
+        if target_tx_id:
+            tx = tx_repo.get_by_id(target_tx_id)
+        if not tx and quoted_id:
             tx = tx_repo.get_by_notification_msg_id(quoted_id)
-        if not tx:
+        if not tx and not target_tx_id:
             rows = conn.execute(
                 "SELECT * FROM transactions WHERE status = 'PENDING' ORDER BY id DESC LIMIT 1"
             ).fetchall()
@@ -203,7 +241,17 @@ async def _handle_reject(
             recipient=settings.bendahara_jid,
             text="❌ Tidak ada transaksi PENDING yang ditemukan untuk ditolak.",
         )
-        return {"status": "not_found"}
+        return {"status": "not_found", "detail": "Transaksi tidak ditemukan"}
+
+    if tx["status"] in ("APPROVED", "ROLLED_BACK", "REJECTED"):
+        await evo.send_text(
+            recipient=settings.bendahara_jid,
+            text=f"⚠️ Transaksi #{tx['id']} sudah diproses sebelumnya (Status: {tx['status']}).",
+        )
+        return {
+            "status": "error",
+            "detail": f"Transaksi #{tx['id']} sudah diproses sebelumnya (Status: {tx['status']})",
+        }
 
     tx_id = tx["id"]
     member_id = tx["member_id"]
@@ -224,7 +272,7 @@ async def _handle_reject(
 
     treasurer_msg = f"❌ Transaksi #{tx_id} ({member['name']}) telah ditolak.\nAlasan: {reason}"
     await evo.send_text(recipient=settings.bendahara_jid, text=treasurer_msg)
-    return {"status": "rejected", "transaction_id": tx_id}
+    return {"status": "rejected", "transaction_id": tx_id, "reason": reason}
 
 
 async def _handle_cash(
@@ -330,27 +378,40 @@ async def _handle_cash(
 async def _handle_undo(
     db: Database,
     evo: EvolutionClient,
+    text: str,
     quoted_id: str | None,
     settings: Any,
 ) -> dict[str, Any]:
-    """Handle /undo rollback swipe-reply."""
+    """Handle /undo rollback swipe-reply or direct /undo [tx_id]."""
+    parts = text.split()
+    target_tx_id: int | None = None
+    if len(parts) > 1 and parts[1].isdigit():
+        target_tx_id = int(parts[1])
+
     with db.connect() as conn:
         tx_repo = TransactionRepository(conn)
         tx = None
-        if quoted_id:
+        if target_tx_id:
+            tx = tx_repo.get_by_id(target_tx_id)
+        if not tx and quoted_id:
             tx = tx_repo.get_by_notification_msg_id(quoted_id)
-        if not tx:
+        if not tx and not target_tx_id:
             rows = conn.execute(
                 "SELECT * FROM transactions WHERE status = 'APPROVED' ORDER BY id DESC LIMIT 1"
             ).fetchall()
             tx = rows[0] if rows else None
 
     if not tx:
+        detail_msg = (
+            f"Transaksi #{target_tx_id} tidak ditemukan"
+            if target_tx_id
+            else "Tidak ada transaksi APPROVED yang dapat di-undo"
+        )
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text="❌ Tidak ada transaksi APPROVED yang dapat di-undo.",
+            text=f"❌ {detail_msg}.",
         )
-        return {"status": "not_found"}
+        return {"status": "error", "detail": detail_msg}
 
     with db.connect() as conn:
         result = execute_undo(conn, transaction_id=tx["id"], raise_on_error=False)
@@ -400,11 +461,25 @@ async def _handle_koreksi(
     if len(parts) < 2:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text="Gunakan format: /koreksi [nominal_baru]\nContoh: /koreksi 25000",
+            text=(
+                "Gunakan format: /koreksi [nominal_baru] atau /koreksi [id] [nominal_baru]\n"
+                "Contoh: /koreksi 30000"
+            ),
         )
         return {"status": "syntax_error"}
 
-    new_nominal = parse_amount(parts[1])
+    target_tx_id: int | None = None
+    new_nominal: int | None = None
+
+    if len(parts) == 2:
+        new_nominal = parse_amount(parts[1])
+    elif len(parts) >= 3:
+        if parts[1].isdigit():
+            target_tx_id = int(parts[1])
+            new_nominal = parse_amount(parts[2])
+        else:
+            new_nominal = parse_amount(parts[1])
+
     if not new_nominal or new_nominal <= 0:
         await evo.send_text(
             recipient=settings.bendahara_jid,
@@ -415,9 +490,11 @@ async def _handle_koreksi(
     with db.connect() as conn:
         tx_repo = TransactionRepository(conn)
         tx = None
-        if quoted_id:
+        if target_tx_id:
+            tx = tx_repo.get_by_id(target_tx_id)
+        if not tx and quoted_id:
             tx = tx_repo.get_by_notification_msg_id(quoted_id)
-        if not tx:
+        if not tx and not target_tx_id:
             rows = conn.execute(
                 "SELECT * FROM transactions WHERE status = 'APPROVED' ORDER BY id DESC LIMIT 1"
             ).fetchall()

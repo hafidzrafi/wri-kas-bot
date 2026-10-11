@@ -33,6 +33,18 @@ async def handle_member(
         member = member_repo.get_by_phone(sender_phone)
 
     if not member or member["status"] != "Aktif":
+        try:
+            from wri_kas_bot.sync import sync_members_from_sheets
+
+            synced = sync_members_from_sheets(db)
+            if synced > 0:
+                with db.connect() as conn:
+                    member_repo = MemberRepository(conn)
+                    member = member_repo.get_by_phone(sender_phone)
+        except Exception as exc:
+            logger.warning("On-demand member sync failed in member_handler: %s", exc)
+
+    if not member or member["status"] != "Aktif":
         msg = (
             "Halo! Nomor WhatsApp Anda belum terdaftar sebagai anggota/pengurus aktif WRI. "
             "Silakan hubungi pengurus atau bendahara untuk pendataan akun."
@@ -49,7 +61,7 @@ async def handle_member(
     elif text in ("/help", "/bantuan", "help", "bantuan"):
         return await _handle_help(evo, sender_jid)
 
-    return {"status": "ignored"}
+    return await _handle_help(evo, sender_jid)
 
 
 async def _handle_status(
