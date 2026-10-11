@@ -1,0 +1,39 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+service_account.json
+*credentials*.json
+*token*.json
+
+# Database & Runtime Data
+data/
+*.db
+*.db-wal
+*.db-shm
+receipts/
+*.jpg
+*.jpeg
+*.png
+
+# Internal Docs & Work Notes (Kept private in parent repository)
+docs/
+*.md.draft
+scratch/
+
+# Python & Tooling Caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Operating System
+.DS_Store
+Thumbs.db
