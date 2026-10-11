@@ -1,0 +1,165 @@
+"""Standalone CLI tool to reconcile stranded transactions from prototype backlog.
+
+Features --dry-run for non-mutating preview and --apply for committing
+FIFO allocations, Google Drive uploads, and Google Sheets synchronization.
+"""
+
+import argparse
+import logging
+import sys
+from typing import Any
+
+from wri_kas_bot.config import get_settings
+from wri_kas_bot.database import Database
+from wri_kas_bot.drive import GoogleDriveClient
+from wri_kas_bot.fifo import allocate_dues
+from wri_kas_bot.repository import TransactionRepository
+from wri_kas_bot.sheets import GoogleSheetsClient
+
+logger = logging.getLogger(__name__)
+
+
+def find_stranded_transactions(db: Database) -> list[dict[str, Any]]:
+    """Query transactions in PENDING status requiring reconciliation."""
+    with db.connect() as conn:
+        cursor = conn.execute(
+            "SELECT t.*, m.name as member_name, m.phone_number, m.status as member_status "
+            "FROM transactions t "
+            "JOIN members m ON t.member_id = m.id "
+            "WHERE t.status = 'PENDING' "
+            "ORDER BY t.id ASC"
+        )
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+
+
+def reconcile_backlog(
+    db: Database,
+    sheets_client: GoogleSheetsClient | None = None,
+    drive_client: GoogleDriveClient | None = None,
+    dry_run: bool = True,
+) -> int:
+    """Run reconciliation on stranded backlog transactions.
+
+    Returns the count of processed transactions.
+    """
+    settings = get_settings()
+    sheets = sheets_client or GoogleSheetsClient()
+    candidates = find_stranded_transactions(db)
+
+    if not candidates:
+        logger.info("No stranded transactions found in backlog.")
+        return 0
+
+    print(f"\nFound {len(candidates)} stranded transactions in backlog:")
+    for c in candidates:
+        name_phone = f"{c['member_name']} ({c['phone_number']})"
+        print(f" - #{c['id']} | Member: {name_phone} | Nominal: Rp {c['amount_paid']:,}")
+
+    if dry_run:
+        print("\n[DRY RUN] Preview mode active. No changes committed to database or Google Sheets.")
+        return len(candidates)
+
+    print("\n[APPLY] Committing FIFO allocations and syncing with Google Sheets...")
+    processed_count = 0
+    with db.transaction() as conn:
+        tx_repo = TransactionRepository(conn)
+
+        for c in candidates:
+            tx_id = c["id"]
+            member_id = c["member_id"]
+            nominal = c["amount_paid"] or c["ocr_amount"] or settings.due_amount_per_month
+
+            alloc_result = allocate_dues(
+                conn=conn,
+                member_id=member_id,
+                amount_paid=nominal,
+                payment_method=c["payment_method"],
+                due_amount=settings.due_amount_per_month,
+                year=2026,
+                transaction_id=tx_id,
+            )
+
+            months_list = [m[1] for m in alloc_result.months_filled]
+            tx_repo.approve(
+                tx_id=tx_id,
+                balance_before=alloc_result.balance_before,
+                balance_after=alloc_result.balance_after,
+                months_filled=months_list,
+                approved_by="CLI_RECONCILER",
+                amount_paid=nominal,
+            )
+
+            # Sync to Google Sheets
+            proof_val = c["proof_drive_url"] or "Via Bot"
+            recorded_coords = []
+            for m_name in months_list:
+                coord = sheets.update_payment_month(c["member_name"], m_name, proof_val)
+                recorded_coords.append(coord)
+
+            sheets.update_member_balance(c["phone_number"], alloc_result.balance_after)
+
+            months_str = ", ".join(months_list) if months_list else "Masuk saldo"
+            log_entry = {
+                "Id": tx_id,
+                "Timestamp": c["created_at"],
+                "Nama": c["member_name"],
+                "Nomor HP": c["phone_number"],
+                "Nominal": nominal,
+                "Bulan Terisi": months_str,
+                "Sisa Saldo": alloc_result.balance_after,
+                "Status": "APPROVED",
+                "Bukti URL": proof_val,
+                "Approved By": "CLI_RECONCILER",
+                "Keterangan": "Reconciled from backlog",
+            }
+            sheets.append_log_transaksi(log_entry)
+
+            conn.execute(
+                "UPDATE transactions SET sync_status = 'SYNCED', updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = ?",
+                (tx_id,),
+            )
+            processed_count += 1
+
+    print(f"Successfully reconciled {processed_count} transactions.")
+    return processed_count
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI tool entrypoint."""
+    parser = argparse.ArgumentParser(description="WRI Kas Bot Backlog Reconciler")
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="Preview backlog mutations without applying changes (default)",
+    )
+    group.add_argument(
+        "--apply",
+        action="store_true",
+        help="Commit transactions and execute Google Sheets updates",
+    )
+    parser.add_argument(
+        "--db-path",
+        default=None,
+        help="Path to SQLite database",
+    )
+
+    args = parser.parse_args(argv)
+    settings = get_settings()
+    db_path = args.db_path or settings.database_url
+    if "sqlite" in db_path:
+        db_path = db_path.split(":///")[-1]
+
+    db = Database(db_path)
+    is_apply = getattr(args, "apply", False)
+    is_dry_run = not is_apply
+
+    reconcile_backlog(db=db, dry_run=is_dry_run)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
