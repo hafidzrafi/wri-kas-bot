@@ -109,7 +109,9 @@ def _parse_amount(raw_val: Any) -> int | None:
     return result if result > 0 else None
 
 
-async def _call_gemini_api(image_bytes: bytes, api_key: str) -> dict[str, Any]:
+async def _call_gemini_api(
+    image_bytes: bytes, api_key: str, model: str = "gemini-1.5-flash"
+) -> dict[str, Any]:
     """Execute raw HTTP POST to Google Gemini Flash API and return parsed JSON dictionary."""
     if not api_key:
         logger.warning("gemini_api_key is empty, returning empty dictionary")
@@ -138,9 +140,15 @@ async def _call_gemini_api(image_bytes: bytes, api_key: str) -> dict[str, Any]:
         },
     }
 
+    api_url = (
+        GEMINI_API_URL
+        if model == "gemini-1.5-flash"
+        else f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    )
+
     async with httpx.AsyncClient(timeout=25.0) as client:
         resp = await client.post(
-            GEMINI_API_URL,
+            api_url,
             params={"key": api_key},
             json=payload,
         )
@@ -174,13 +182,15 @@ async def _call_gemini_api(image_bytes: bytes, api_key: str) -> dict[str, Any]:
         return {}
 
 
-async def extract_receipt_data(image_bytes: bytes, api_key: str) -> OCRReceiptResult:
+async def extract_receipt_data(
+    image_bytes: bytes, api_key: str, model: str = "gemini-1.5-flash"
+) -> OCRReceiptResult:
     """Extract receipt metadata using Gemini Flash Vision.
 
     Gracefully falls back to null values on network or extraction errors.
     """
     try:
-        raw_dict = await _call_gemini_api(image_bytes, api_key)
+        raw_dict = await _call_gemini_api(image_bytes, api_key, model=model)
     except Exception as exc:
         logger.error("Gemini API call failed with exception: %s", exc)
         return OCRReceiptResult(
@@ -213,9 +223,10 @@ async def extract_receipt_data(image_bytes: bytes, api_key: str) -> OCRReceiptRe
 class ReceiptOCR:
     """Object-oriented wrapper around Gemini receipt extraction."""
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, model: str = "gemini-1.5-flash") -> None:
         self.api_key = api_key or ""
+        self.model = model
 
     async def extract_receipt(self, image_bytes: bytes) -> OCRReceiptResult:
         """Extract receipt transaction details from image bytes."""
-        return await extract_receipt_data(image_bytes, self.api_key)
+        return await extract_receipt_data(image_bytes, self.api_key, model=self.model)

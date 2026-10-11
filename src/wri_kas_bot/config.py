@@ -115,6 +115,11 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GEMINI_API_KEY", "gemini_api_key"),
         description="Google Gemini Flash API key for receipt OCR extraction.",
     )
+    gemini_model: str = Field(
+        default="gemini-1.5-flash",
+        validation_alias=AliasChoices("GEMINI_MODEL", "gemini_model"),
+        description="Google Gemini model identifier for multimodal vision receipt extraction.",
+    )
 
     # 6. Dues Policy & Automation Scheduling
     due_amount_per_month: int = Field(

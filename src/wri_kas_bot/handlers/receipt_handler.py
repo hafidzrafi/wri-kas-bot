@@ -30,7 +30,7 @@ async def handle_receipt(
     """Process an inbound receipt image from a WhatsApp member."""
     settings = get_settings()
     evo = evolution or EvolutionClient()
-    ocr = ocr_engine or ReceiptOCR(api_key=settings.gemini_api_key)
+    ocr = ocr_engine or ReceiptOCR(api_key=settings.gemini_api_key, model=settings.gemini_model)
 
     sender_phone = payload.sender_phone
     sender_jid = payload.sender_jid
