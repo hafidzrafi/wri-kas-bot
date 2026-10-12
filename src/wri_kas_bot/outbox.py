@@ -76,20 +76,28 @@ class OutboxWorker:
         try:
             # 2. Drive Archival for Non-Cash Receipts (External HTTP - No DB lock held)
             if payment_method != "CASH" and not proof_drive_url and local_image_path:
-                img_path = Path(local_image_path)
-                if img_path.is_file():
-                    img_bytes = img_path.read_bytes()
-                    filename = format_drive_filename(
-                        member_phone,
-                        member_name,
-                        created_at or "20261011",
-                    )
-                    proof_drive_url = self.drive_client.upload_file(img_bytes, filename)
-                    with self.db.transaction() as conn:
-                        conn.execute(
-                            "UPDATE transactions SET proof_drive_url = ? WHERE id = ?",
-                            (proof_drive_url, tx_id),
+                try:
+                    img_path = Path(local_image_path)
+                    if img_path.is_file():
+                        img_bytes = img_path.read_bytes()
+                        filename = format_drive_filename(
+                            member_phone,
+                            member_name,
+                            created_at or "20261011",
                         )
+                        proof_drive_url = self.drive_client.upload_file(img_bytes, filename)
+                        with self.db.transaction() as conn:
+                            conn.execute(
+                                "UPDATE transactions SET proof_drive_url = ? WHERE id = ?",
+                                (proof_drive_url, tx_id),
+                            )
+                except Exception as drive_exc:
+                    logger.warning(
+                        "Drive receipt archival failed for transaction #%d: %s. "
+                        "Proceeding with Sheets sync.",
+                        tx_id,
+                        drive_exc,
+                    )
 
             proof_cell_val = "Tunai" if payment_method == "CASH" else (proof_drive_url or "Via Bot")
 

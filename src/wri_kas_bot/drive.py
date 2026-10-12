@@ -88,6 +88,7 @@ class GoogleDriveClient:
                 body=file_metadata,
                 media_body=media,
                 fields="id, webViewLink",
+                supportsAllDrives=True,
             )
             .execute()
         )
