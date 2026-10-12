@@ -41,8 +41,13 @@ class GoogleDriveClient:
         service_account_json: str | None = None,
         folder_id: str | None = None,
     ) -> None:
-        self.service_account_json = service_account_json or "credentials.json"
-        self.folder_id = folder_id
+        from wri_kas_bot.config import get_settings
+
+        settings = get_settings()
+        self.service_account_json = service_account_json or getattr(
+            settings, "google_service_account_json", "credentials.json"
+        )
+        self.folder_id = folder_id or getattr(settings, "drive_proof_folder_id", None)
         self._service: Any = None
 
     @property

@@ -56,8 +56,15 @@ class GoogleSheetsClient:
         service_account_json: str | None = None,
         spreadsheet_id: str | None = None,
     ) -> None:
-        self.service_account_json = service_account_json or "credentials.json"
-        self.spreadsheet_id = spreadsheet_id or "mock-spreadsheet-id"
+        from wri_kas_bot.config import get_settings
+
+        settings = get_settings()
+        self.service_account_json = service_account_json or getattr(
+            settings, "google_service_account_json", "credentials.json"
+        )
+        self.spreadsheet_id = spreadsheet_id or getattr(
+            settings, "google_spreadsheet_id", "mock-spreadsheet-id"
+        )
         self._service: Any = None
 
     @property
