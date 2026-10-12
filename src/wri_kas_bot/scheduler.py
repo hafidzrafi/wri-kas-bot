@@ -84,10 +84,10 @@ async def execute_billing_blast(
             f"Halo {member['name']},\n"
             f"Pengingat iuran kas pengurus WRI:\n\n"
             f"Tunggakan: {unpaid_names} ({unpaid_count} bln)\n"
-            f"Saldo simpanan: Rp {balance:,}\n"
-            f"Total tagihan: Rp {net_bill:,}\n\n"
-            f"Transfer ke Bank Jago: *{settings.bank_account_number}*\n"
-            f"a.n. {settings.bank_account_holder}.\n"
+            f"Saldo: Rp {balance:,}\n"
+            f"Tagihan: Rp {net_bill:,}\n\n"
+            f"Transfer ke rekening:\n"
+            f"Bank Jago: *{settings.bank_account_number}* a.n. {settings.bank_account_holder}\n"
             f"Kirim foto bukti transfer ke nomor ini untuk verifikasi."
         )
 

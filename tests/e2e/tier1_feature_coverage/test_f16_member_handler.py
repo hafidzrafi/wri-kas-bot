@@ -53,7 +53,7 @@ async def test_member_status_command(initialized_db, mock_evolution_api):
     assert "STATUS KAS WRI" in msg_text
     assert "Alice" in msg_text
     assert "Rp 90,000" in msg_text
-    assert "Tunggakan Jatuh Tempo" in msg_text
+    assert "Tunggakan" in msg_text
     assert "Bulan Mendatang" in msg_text
 
 

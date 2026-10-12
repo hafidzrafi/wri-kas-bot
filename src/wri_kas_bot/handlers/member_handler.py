@@ -170,16 +170,16 @@ async def _handle_status(
     if pending_tx:
         amount = pending_tx["amount_paid"] or pending_tx["ocr_amount"] or 0
         pending_notice = (
-            f"\n\n*Catatan:* Bukti transfer Rp {amount:,} sedang menunggu verifikasi bendahara."
+            f"\n\n*Catatan:* Bukti transfer Rp {amount:,} menunggu verifikasi bendahara."
         )
 
     msg = (
         f"*STATUS KAS WRI (2026)*\n\n"
         f"Nama: {member['name']}\n"
-        f"Saldo simpanan: Rp {balance:,}\n\n"
+        f"Saldo: Rp {balance:,}\n\n"
         f"*Bulan Lunas:* {paid_str}\n"
-        f"*Tunggakan Jatuh Tempo:* {overdue_str}\n"
-        f"*Total Tagihan Jatuh Tempo:* Rp {net_bill:,}\n"
+        f"*Tunggakan:* {overdue_str}\n"
+        f"*Tagihan:* Rp {net_bill:,}\n"
         f"*Bulan Mendatang:* {future_str}"
         f"{pending_notice}\n\n"
         f"Ketik /bayar untuk info pembayaran."
@@ -224,12 +224,11 @@ async def _handle_bayar(
     net_bill = max(0, (overdue_count * settings.due_amount_per_month) - balance)
 
     if net_bill > 0:
-        bill_section = f"Tagihan jatuh tempo: *Rp {net_bill:,}*\n\n"
+        bill_section = f"Tagihan: *Rp {net_bill:,}*\n\n"
     else:
         fee = settings.due_amount_per_month
         bill_section = (
-            f"Tidak ada tunggakan jatuh tempo (Saldo simpanan: Rp {balance:,}).\n"
-            f"Kas per bulan: Rp {fee:,}.\n\n"
+            f"Tidak ada tunggakan (Saldo: Rp {balance:,}).\nKas per bulan: Rp {fee:,}.\n\n"
         )
 
     # Attempt to dispatch official QRIS image with caption
@@ -238,7 +237,7 @@ async def _handle_bayar(
         caption = (
             f"*PEMBAYARAN KAS WRI*\n\n"
             f"{bill_section}"
-            f"Transfer ke rekening resmi WRI:\n"
+            f"Transfer ke rekening:\n"
             f"Bank Jago: *{settings.bank_account_number}* a.n. {settings.bank_account_holder}\n"
             f"QRIS: Scan kode QR pada gambar di atas.\n\n"
             f"Kirim foto bukti transfer ke sini untuk verifikasi."
@@ -258,7 +257,7 @@ async def _handle_bayar(
     msg = (
         f"*PEMBAYARAN KAS WRI*\n\n"
         f"{bill_section}"
-        f"Transfer ke rekening resmi WRI:\n"
+        f"Transfer ke rekening:\n"
         f"Bank Jago: *{settings.bank_account_number}* a.n. {settings.bank_account_holder}\n"
         f"QRIS: {settings.qris_file_url}\n\n"
         f"Kirim foto bukti transfer ke sini untuk verifikasi."

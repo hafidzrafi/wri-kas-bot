@@ -187,7 +187,7 @@ async def _handle_acc(
         f"Halo {member['name']},\n"
         f"Pembayaran kas Rp {final_nominal:,} telah diverifikasi bendahara.\n\n"
         f"Bulan terbayar: {months_str}\n"
-        f"Sisa saldo: Rp {alloc_result.balance_after:,}\n\n"
+        f"Saldo: Rp {alloc_result.balance_after:,}\n\n"
         f"Terima kasih."
     )
     await evo.send_text(recipient=member["phone_number"], text=member_msg)
@@ -197,7 +197,7 @@ async def _handle_acc(
         f"Transaksi #{tx_id} ({member['name']}) berhasil di-acc.\n"
         f"Nominal: Rp {final_nominal:,}\n"
         f"Bulan terisi: {months_str}\n"
-        f"Sisa saldo: Rp {alloc_result.balance_after:,}"
+        f"Saldo: Rp {alloc_result.balance_after:,}"
     )
     await evo.send_text(recipient=settings.bendahara_jid, text=treasurer_msg)
     return {"status": "approved", "transaction_id": tx_id}
@@ -360,7 +360,7 @@ async def _handle_cash(
         f"Halo {member['name']},\n"
         f"Pembayaran kas tunai Rp {nominal:,} telah diterima bendahara.\n\n"
         f"Bulan terisi: {months_str}\n"
-        f"Sisa saldo: Rp {alloc_result.balance_after:,}\n\n"
+        f"Saldo: Rp {alloc_result.balance_after:,}\n\n"
         f"Terima kasih."
     )
     await evo.send_text(recipient=member["phone_number"], text=member_msg)
@@ -369,7 +369,7 @@ async def _handle_cash(
         f"Pembayaran tunai #{tx_id} ({member['name']}) berhasil dicatat.\n"
         f"Nominal: Rp {nominal:,}\n"
         f"Bulan terisi: {months_str}\n"
-        f"Sisa saldo: Rp {alloc_result.balance_after:,}"
+        f"Saldo: Rp {alloc_result.balance_after:,}"
     )
     await evo.send_text(recipient=settings.bendahara_jid, text=treasurer_msg)
     return {"status": "cash_recorded", "transaction_id": tx_id}
@@ -536,7 +536,7 @@ async def _handle_koreksi(
         f"Koreksi transaksi #{tx['id']} ({member['name']}) berhasil.\n"
         f"Nominal baru: Rp {new_nominal:,}\n"
         f"Bulan terisi baru: {filled_str}\n"
-        f"Sisa saldo: Rp {result.new_balance:,}"
+        f"Saldo: Rp {result.new_balance:,}"
     )
     await evo.send_text(recipient=settings.bendahara_jid, text=treasurer_msg)
     return {"status": "koreksi_success", "transaction_id": tx["id"]}

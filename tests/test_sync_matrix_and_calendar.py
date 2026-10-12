@@ -131,7 +131,7 @@ async def test_member_status_option_1_calendar_split(test_db):
     msg = evo.send_text.call_args.kwargs["text"]
     assert "Februari, Maret, April, Mei, Juni, Juli, Agustus (7 bln)" in msg
     assert "September, Oktober (2 bln)" in msg
-    assert "Total Tagihan Jatuh Tempo:* Rp 20,000" in msg
+    assert "*Tagihan:* Rp 20,000" in msg
     assert "November, Desember (2 bln)" in msg
 
 
@@ -162,7 +162,7 @@ async def test_member_status_with_deposit_balance(test_db):
     assert res["net_bill"] == 15000  # 20,000 overdue - 5,000 balance
 
     msg = evo.send_text.call_args.kwargs["text"]
-    assert "Total Tagihan Jatuh Tempo:* Rp 15,000" in msg
+    assert "*Tagihan:* Rp 15,000" in msg
 
 
 @pytest.mark.asyncio

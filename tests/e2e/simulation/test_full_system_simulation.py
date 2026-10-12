@@ -237,7 +237,7 @@ async def test_sim_06_member_status_command(
     body = evo.send_text.call_args[1]["text"]
     assert "Februari" in body
     assert "Desember" in body
-    assert "Tunggakan Jatuh Tempo" in body
+    assert "Tunggakan" in body
 
 
 # Feature 7 & 8: Receipt Ingestion, Gemini OCR & Treasurer Notification Card
