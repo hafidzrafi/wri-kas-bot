@@ -81,7 +81,6 @@ class GoogleDriveClient:
                             token_uri=d.get("token_uri", "https://oauth2.googleapis.com/token"),
                             client_id=d.get("client_id"),
                             client_secret=d.get("client_secret"),
-                            scopes=DRIVE_SCOPES,
                         )
                         logger.info("Loaded Google Drive OAuth credentials from %s", candidate)
                         break
