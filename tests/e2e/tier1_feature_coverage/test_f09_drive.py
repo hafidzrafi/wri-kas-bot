@@ -70,3 +70,33 @@ def test_drive_upload_custom_mime_type():
         media_body = mock_create.call_args.kwargs.get("media_body")
         assert media_body is not None
         assert media_body.mimetype() == "image/png"
+
+
+def test_drive_oauth_token_loading(tmp_path):
+    """Verify GoogleDriveClient loads and constructs Credentials from OAuth token json."""
+    import json
+
+    token_file = tmp_path / "mock_drive_token.json"
+    token_file.write_text(
+        json.dumps(
+            {
+                "token": "mock-token",
+                "refresh_token": "mock-refresh",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "client_id": "mock-client-id",
+                "client_secret": "mock-client-secret",
+            }
+        )
+    )
+
+    with patch("googleapiclient.discovery.build") as mock_build:
+        mock_build.return_value = MagicMock()
+        client = GoogleDriveClient(token_json=str(token_file), folder_id="folder-123")
+        svc = client.service
+        assert svc is not None
+        mock_build.assert_called_once()
+        _, kwargs = mock_build.call_args
+        credentials = kwargs.get("credentials")
+        assert credentials is not None
+        assert credentials.refresh_token == "mock-refresh"
+        assert credentials.token == "mock-token"

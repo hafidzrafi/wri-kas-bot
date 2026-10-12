@@ -99,7 +99,8 @@ class OutboxWorker:
                         drive_exc,
                     )
 
-            proof_cell_val = "Tunai" if payment_method == "CASH" else (proof_drive_url or "Via Bot")
+            dues_cell_val = "Tunai" if payment_method == "CASH" else "Bank Jago"
+            bukti_url_val = "Tunai" if payment_method == "CASH" else (proof_drive_url or "")
 
             # 3. Forward Sync for Approved Transactions (External HTTP - No DB lock held)
             if tx_status == "APPROVED":
@@ -113,7 +114,7 @@ class OutboxWorker:
                     coord = self.sheets_client.update_payment_month(
                         name=member_name,
                         month=month_name,
-                        proof_url=proof_cell_val,
+                        proof_url=dues_cell_val,
                     )
                     recorded_cells.append(coord)
 
@@ -135,7 +136,7 @@ class OutboxWorker:
                     "Bulan Terisi": months_str,
                     "Sisa Saldo": balance_after,
                     "Status": "APPROVED",
-                    "Bukti URL": proof_cell_val,
+                    "Bukti URL": bukti_url_val,
                     "Approved By": approved_by or "Bendahara",
                     "Keterangan": f"Via Bot ({payment_method})",
                 }
@@ -186,7 +187,7 @@ class OutboxWorker:
                     "Bulan Terisi": "ROLLBACK",
                     "Sisa Saldo": balance_before,
                     "Status": "REVERTED",
-                    "Bukti URL": proof_cell_val,
+                    "Bukti URL": bukti_url_val,
                     "Approved By": approved_by or "Bendahara",
                     "Keterangan": "Transaksi Dibatalkan (/undo)",
                 }

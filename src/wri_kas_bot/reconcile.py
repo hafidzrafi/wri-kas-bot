@@ -112,10 +112,12 @@ def reconcile_backlog(
             )
 
             # Sync to Google Sheets
-            proof_val = c["proof_drive_url"] or "Via Bot"
+            is_cash = c["payment_method"] == "CASH"
+            dues_cell_val = "Tunai" if is_cash else "Bank Jago"
+            bukti_url_val = "Tunai" if is_cash else (c["proof_drive_url"] or "")
             recorded_coords = []
             for m_name in months_list:
-                coord = sheets.update_payment_month(c["member_name"], m_name, proof_val)
+                coord = sheets.update_payment_month(c["member_name"], m_name, dues_cell_val)
                 recorded_coords.append(coord)
 
             sheets.update_member_balance(c["phone_number"], alloc_result.balance_after)
@@ -130,7 +132,7 @@ def reconcile_backlog(
                 "Bulan Terisi": months_str,
                 "Sisa Saldo": alloc_result.balance_after,
                 "Status": "APPROVED",
-                "Bukti URL": proof_val,
+                "Bukti URL": bukti_url_val,
                 "Approved By": "CLI_RECONCILER",
                 "Keterangan": "Reconciled from backlog",
             }

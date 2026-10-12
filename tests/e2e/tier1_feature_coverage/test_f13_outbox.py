@@ -90,3 +90,60 @@ async def test_outbox_reverse_sync_on_undo(mock_sheets_client):
     """Verify outbox worker triggers batch_clear_cells on reverse sync tasks."""
     mock_sheets_client.batch_clear_cells(["PENGURUS-2025/2026!D5"])
     assert "PENGURUS-2025/2026!D5" in mock_sheets_client.cleared_ranges
+
+
+@pytest.mark.asyncio
+async def test_outbox_writes_bank_jago_for_transfer_and_tunai_for_cash(
+    initialized_db, mock_sheets_client, mock_drive_client, tmp_path
+):
+    """Verify matrix dues cells receive 'Bank Jago' (transfer) or 'Tunai' (cash),
+    while log gets Drive link.
+    """
+    from wri_kas_bot.database import Database
+    from wri_kas_bot.outbox import OutboxWorker
+    from wri_kas_bot.repository import TransactionRepository
+
+    test_img = tmp_path / "receipt.jpg"
+    test_img.write_bytes(b"RECEIPT_DATA")
+
+    db = Database(initialized_db)
+    with db.transaction() as conn:
+        tx_repo = TransactionRepository(conn)
+        tx_id_transfer = tx_repo.create_draft(
+            member_id=1,
+            amount_paid=10000,
+            payment_method="TRANSFER_JAGO",
+            local_image_path=str(test_img),
+        )
+        tx_repo.approve(
+            tx_id=tx_id_transfer,
+            balance_before=0,
+            balance_after=0,
+            months_filled=["Februari"],
+            approved_by="6281100000099@s.whatsapp.net",
+        )
+
+        tx_id_cash = tx_repo.create_draft(
+            member_id=2,
+            amount_paid=10000,
+            payment_method="CASH",
+        )
+        tx_repo.approve(
+            tx_id=tx_id_cash,
+            balance_before=0,
+            balance_after=0,
+            months_filled=["Februari"],
+            approved_by="6281100000099@s.whatsapp.net",
+        )
+
+    worker = OutboxWorker(db=db, sheets_client=mock_sheets_client, drive_client=mock_drive_client)
+    processed = await worker.run_outbox_cycle()
+    assert processed == 2
+
+    # Verify dues matrix cells: 1st is Bank Jago, 2nd is Tunai
+    assert mock_sheets_client.updated_cells[-2]["proof_url"] == "Bank Jago"
+    assert mock_sheets_client.updated_cells[-1]["proof_url"] == "Tunai"
+
+    # Verify log_transaksi Bukti URL: 1st is Drive URL, 2nd is Tunai
+    assert "drive.google.com" in mock_sheets_client.appended_rows[-2]["Bukti URL"]
+    assert mock_sheets_client.appended_rows[-1]["Bukti URL"] == "Tunai"
