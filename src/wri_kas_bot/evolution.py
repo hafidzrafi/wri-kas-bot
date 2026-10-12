@@ -160,17 +160,19 @@ class EvolutionClient:
         image_base64: str = "",
         caption: str = "",
         recipient: str | None = None,
+        file_name: str = "receipt.jpg",
     ) -> str:
-        """Send base64-encoded image to WhatsApp recipient using Data URI scheme."""
+        """Send base64-encoded image to WhatsApp recipient using raw base64 string."""
         target = jid or recipient
         if not target:
             raise ValueError("Missing jid or recipient parameter")
         formatted_jid = normalize_jid(target)
         clean_b64 = image_base64.strip()
         if clean_b64.startswith("data:"):
-            media_data_uri = clean_b64
+            parts = clean_b64.split(",", 1)
+            raw_media = parts[1] if len(parts) > 1 else parts[0]
         else:
-            media_data_uri = f"data:image/jpeg;base64,{clean_b64}"
+            raw_media = clean_b64
 
         encoded_instance = urllib.parse.quote(self.instance, safe="")
         url = f"{self.base_url}/message/sendMedia/{encoded_instance}"
@@ -179,8 +181,8 @@ class EvolutionClient:
             "mediatype": "image",
             "mimetype": "image/jpeg",
             "caption": caption,
-            "media": media_data_uri,
-            "fileName": "receipt.jpg",
+            "media": raw_media,
+            "fileName": file_name,
         }
 
         client = await self._get_client()
@@ -218,6 +220,7 @@ class EvolutionClient:
             jid=target,
             image_base64=media,
             caption=caption,
+            file_name=file_name,
         )
         return {"key": {"id": msg_id, "fromMe": True}, "status": "PENDING"}
 

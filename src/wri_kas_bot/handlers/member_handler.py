@@ -255,6 +255,7 @@ async def _handle_bayar(
                 jid=sender_jid,
                 image_base64=qris_b64,
                 caption=caption,
+                file_name="qris.jpg",
             )
             return {"status": "ok", "net_bill": net_bill, "media": "image"}
         except Exception as exc:

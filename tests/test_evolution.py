@@ -123,20 +123,20 @@ async def test_send_image_base64_data_uri_formatting(respx_mock: respx.MockRoute
         caption="Bukti Pembayaran Alice",
     )
     body1 = route.calls.last.request.read().decode("utf-8")
-    assert "data:image/jpeg;base64,aW1hZ2UtYnl0ZXM=" in body1
+    assert '"media":"aW1hZ2UtYnl0ZXM="' in body1.replace(" ", "")
     assert '"mediatype":"image"' in body1.replace(" ", "")
     assert '"mimetype":"image/jpeg"' in body1.replace(" ", "")
     assert '"fileName":"receipt.jpg"' in body1.replace(" ", "")
 
-    # 2. Pre-formatted data URI string (should not get double prefixed)
+    # 2. Pre-formatted data URI string (prefix stripped to raw base64 for Evolution API v2)
     await client.send_image_base64(
         jid="6281100000099@s.whatsapp.net",
         image_base64="data:image/png;base64,YWJjZGVm",
         caption="Pre-formatted",
     )
     body2 = route.calls.last.request.read().decode("utf-8")
-    assert "data:image/png;base64,YWJjZGVm" in body2
-    assert "data:image/jpeg;base64,data:" not in body2
+    assert '"media":"YWJjZGVm"' in body2.replace(" ", "")
+    assert "data:image" not in body2
 
     await client.close()
 
