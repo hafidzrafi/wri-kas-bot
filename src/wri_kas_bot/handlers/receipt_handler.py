@@ -120,7 +120,7 @@ async def handle_receipt(
         )
 
     # 6. Immediate Acknowledgment to Member
-    ack_msg = "Bukti pembayaran diterima! Menunggu verifikasi bendahara ⏳"
+    ack_msg = "Bukti transfer diterima. Menunggu verifikasi bendahara."
     await evo.send_text(recipient=sender_jid, text=ack_msg)
 
     # 7. Forward Verification Card to Treasurer
@@ -135,19 +135,17 @@ async def handle_receipt(
     bank_display = ocr_bank or "Bank/E-Wallet"
 
     caption = (
-        f"📥 *BUKTI KAS MASUK*\n\n"
-        f"👤 Dari: {member['name']}\n"
-        f"📞 No: {member['phone_number']}\n"
-        f"💳 Saldo saat ini: Rp {balance:,}\n"
-        f"📋 Tunggakan: {unpaid_str} ({unpaid_count} bln)\n"
-        f"💰 Tagihan bersih: Rp {net_due:,}\n\n"
-        f"🤖 *Hasil Deteksi AI (Gemini Flash):*\n"
-        f"💵 Terdeteksi: {ocr_display} ({bank_display})\n\n"
-        f"─────────────\n"
+        f"*BUKTI KAS MASUK*\n\n"
+        f"Nama: {member['name']}\n"
+        f"No: {member['phone_number']}\n"
+        f"Saldo: Rp {balance:,}\n"
+        f"Tunggakan: {unpaid_str} ({unpaid_count} bln)\n"
+        f"Tagihan: Rp {net_due:,}\n\n"
+        f"Nominal terbaca: {ocr_display} ({bank_display})\n\n"
         f"Balas pesan ini:\n"
-        f"✅ /acc       (otomatis pakai nominal deteksi)\n"
-        f"✅ /acc [nominal_koreksi]\n"
-        f"❌ /reject [alasan]"
+        f"/acc\n"
+        f"/acc [nominal]\n"
+        f"/reject [alasan]"
     )
 
     media_b64 = base64.b64encode(image_bytes).decode("utf-8")

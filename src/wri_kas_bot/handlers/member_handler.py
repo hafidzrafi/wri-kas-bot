@@ -159,7 +159,7 @@ async def _handle_status(
     if overdue_count > 0:
         overdue_str = f"{', '.join(d.month for d in overdue_dues)} ({overdue_count} bln)"
     else:
-        overdue_str = "Nihil (Lunas sampai bulan ini! 🎉)"
+        overdue_str = "Nihil (Lunas sampai bulan ini!)"
 
     if future_count > 0:
         future_str = f"{', '.join(d.month for d in future_dues)} ({future_count} bln)"
@@ -170,21 +170,19 @@ async def _handle_status(
     if pending_tx:
         amount = pending_tx["amount_paid"] or pending_tx["ocr_amount"] or 0
         pending_notice = (
-            f"\n\n⏳ *Catatan:* Bukti transfer Anda sebesar Rp {amount:,} "
-            f"sedang menunggu verifikasi bendahara."
+            f"\n\n*Catatan:* Bukti transfer Rp {amount:,} sedang menunggu verifikasi bendahara."
         )
 
     msg = (
-        f"📊 *STATUS KAS WRI (2026)*\n\n"
-        f"👤 *Nama:* {member['name']}\n"
-        f"📞 *No HP:* {member['phone_number']}\n"
-        f"💳 *Saldo Kas Simpanan:* Rp {balance:,}\n\n"
-        f"✅ *Bulan Lunas:* {paid_str}\n"
-        f"📋 *Tunggakan Jatuh Tempo:* {overdue_str}\n"
-        f"💰 *Total Tagihan Jatuh Tempo:* Rp {net_bill:,}\n"
-        f"⏳ *Bulan Mendatang:* {future_str}"
+        f"*STATUS KAS WRI (2026)*\n\n"
+        f"Nama: {member['name']}\n"
+        f"Saldo simpanan: Rp {balance:,}\n\n"
+        f"*Bulan Lunas:* {paid_str}\n"
+        f"*Tunggakan Jatuh Tempo:* {overdue_str}\n"
+        f"*Total Tagihan Jatuh Tempo:* Rp {net_bill:,}\n"
+        f"*Bulan Mendatang:* {future_str}"
         f"{pending_notice}\n\n"
-        f"Ketik */bayar* untuk melihat info rekening dan QRIS."
+        f"Ketik /bayar untuk info pembayaran."
     )
 
     await evo.send_text(recipient=sender_jid, text=msg)
@@ -226,29 +224,24 @@ async def _handle_bayar(
     net_bill = max(0, (overdue_count * settings.due_amount_per_month) - balance)
 
     if net_bill > 0:
-        bill_section = f"Tagihan jatuh tempo Anda saat ini: *Rp {net_bill:,}*\n\n"
+        bill_section = f"Tagihan jatuh tempo: *Rp {net_bill:,}*\n\n"
     else:
         fee = settings.due_amount_per_month
         bill_section = (
-            f"Anda tidak memiliki tunggakan jatuh tempo saat ini (Saldo kas: Rp {balance:,}).\n"
-            f"Jika ingin membayar kas bulan mendatang, kas per bulan adalah *Rp {fee:,}*.\n\n"
+            f"Tidak ada tunggakan jatuh tempo (Saldo simpanan: Rp {balance:,}).\n"
+            f"Kas per bulan: Rp {fee:,}.\n\n"
         )
 
     # Attempt to dispatch official QRIS image with caption
     qris_b64 = await load_qris_image_base64(settings)
     if qris_b64:
         caption = (
-            f"💳 *PEMBAYARAN KAS WRI*\n\n"
+            f"*PEMBAYARAN KAS WRI*\n\n"
             f"{bill_section}"
-            f"Silakan transfer ke salah satu rekening resmi WRI:\n\n"
-            f"🏦 *Bank Jago*\n"
-            f"• No. Rekening: *{settings.bank_account_number}*\n"
-            f"• Atas Nama: *{settings.bank_account_holder}*\n\n"
-            f"📱 *QRIS All Payment:*\n"
-            f"(Scan kode QR pada gambar di atas)\n\n"
-            f"📌 *Penting:* Setelah transfer berhasil, silakan langsung kirimkan "
-            f"*FOTO / SCREENSHOT BUKTI TRANSFER* ke nomor bot ini. "
-            f"Sistem AI akan otomatis membaca nominal dan meneruskan ke bendahara!"
+            f"Transfer ke rekening resmi WRI:\n"
+            f"Bank Jago: *{settings.bank_account_number}* a.n. {settings.bank_account_holder}\n"
+            f"QRIS: Scan kode QR pada gambar di atas.\n\n"
+            f"Kirim foto bukti transfer ke sini untuk verifikasi."
         )
         try:
             await evo.send_image_base64(
@@ -263,17 +256,12 @@ async def _handle_bayar(
 
     # Fallback to plain text message
     msg = (
-        f"💳 *PEMBAYARAN KAS WRI*\n\n"
+        f"*PEMBAYARAN KAS WRI*\n\n"
         f"{bill_section}"
-        f"Silakan transfer ke salah satu rekening resmi WRI:\n\n"
-        f"🏦 *Bank Jago*\n"
-        f"• No. Rekening: *{settings.bank_account_number}*\n"
-        f"• Atas Nama: *{settings.bank_account_holder}*\n\n"
-        f"📱 *QRIS All Payment:*\n"
-        f"{settings.qris_file_url}\n\n"
-        f"📌 *Penting:* Setelah transfer berhasil, silakan langsung kirimkan "
-        f"*FOTO / SCREENSHOT BUKTI TRANSFER* ke nomor bot ini. "
-        f"Sistem AI akan otomatis membaca nominal dan meneruskan ke bendahara!"
+        f"Transfer ke rekening resmi WRI:\n"
+        f"Bank Jago: *{settings.bank_account_number}* a.n. {settings.bank_account_holder}\n"
+        f"QRIS: {settings.qris_file_url}\n\n"
+        f"Kirim foto bukti transfer ke sini untuk verifikasi."
     )
 
     await evo.send_text(recipient=sender_jid, text=msg)
@@ -283,12 +271,12 @@ async def _handle_bayar(
 async def _handle_help(evo: EvolutionClient, sender_jid: str) -> dict[str, Any]:
     """Return available commands help menu."""
     msg = (
-        "🤖 *BANTUAN BOT KAS WRI*\n\n"
-        "Berikut perintah yang dapat Anda gunakan:\n"
-        "• */status* : Cek status tagihan, bulan lunas, dan saldo kas Anda\n"
-        "• */bayar*  : Info rekening Bank Jago, QRIS, dan panduan transfer\n"
-        "• *Kirim Foto Bukti*: Upload bukti transfer kas untuk verifikasi otomatis\n\n"
-        "Untuk kendala pembayaran kas, hubungi bendahara WRI."
+        "*BANTUAN BOT KAS WRI*\n\n"
+        "Perintah yang tersedia:\n"
+        "• /status : Cek status tagihan dan saldo kas\n"
+        "• /bayar : Info rekening dan QRIS pembayaran\n"
+        "• Kirim foto bukti: Upload bukti transfer untuk verifikasi bendahara\n\n"
+        "Kendala pembayaran hubungi bendahara WRI."
     )
     await evo.send_text(recipient=sender_jid, text=msg)
     return {"status": "ok"}

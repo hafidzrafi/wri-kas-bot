@@ -80,16 +80,15 @@ async def execute_billing_blast(
 
         unpaid_names = ", ".join(d["month"] for d in eligible_unpaid)
         msg = (
-            f"🔔 *PENGINGAT KAS WRI (BULAN {today.strftime('%B %Y').upper()})*\n\n"
+            f"*PENGINGAT KAS WRI ({today.strftime('%B %Y').upper()})*\n\n"
             f"Halo {member['name']},\n"
-            f"Ini adalah pengingat pembayaran uang kas pengurus WRI.\n\n"
-            f"📋 *Tunggakan Anda:* {unpaid_names} ({unpaid_count} bulan)\n"
-            f"💳 *Saldo Kas Anda:* Rp {balance:,}\n"
-            f"💰 *Total Tagihan Bersih:* Rp {net_bill:,}\n\n"
-            f"Silakan transfer ke rekening resmi Bank Jago: *{settings.bank_account_number}* "
-            f"({settings.bank_account_holder}). "
-            f"Setelah transfer, kirimkan foto bukti pembayaran ke nomor ini "
-            f"untuk verifikasi otomatis! ✨"
+            f"Pengingat iuran kas pengurus WRI:\n\n"
+            f"Tunggakan: {unpaid_names} ({unpaid_count} bln)\n"
+            f"Saldo simpanan: Rp {balance:,}\n"
+            f"Total tagihan: Rp {net_bill:,}\n\n"
+            f"Transfer ke Bank Jago: *{settings.bank_account_number}*\n"
+            f"a.n. {settings.bank_account_holder}.\n"
+            f"Kirim foto bukti transfer ke nomor ini untuk verifikasi."
         )
 
         try:

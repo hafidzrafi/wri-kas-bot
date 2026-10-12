@@ -118,14 +118,14 @@ async def _handle_acc(
     if not tx:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text="❌ Tidak ada transaksi PENDING yang sesuai untuk di-acc.",
+            text="Tidak ada transaksi PENDING yang sesuai untuk di-acc.",
         )
         return {"status": "not_found", "detail": "Transaksi tidak ditemukan"}
 
     if tx["status"] in ("APPROVED", "ROLLED_BACK", "REJECTED"):
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text=f"⚠️ Transaksi #{tx['id']} sudah diproses sebelumnya (Status: {tx['status']}).",
+            text=f"Transaksi #{tx['id']} sudah diproses sebelumnya (Status: {tx['status']}).",
         )
         return {
             "status": "error",
@@ -136,7 +136,7 @@ async def _handle_acc(
     if not final_nominal or final_nominal <= 0:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text="⚠️ Nominal OCR tidak terdeteksi. Silakan ketik: /acc [nominal]",
+            text="Nominal OCR tidak terdeteksi. Silakan ketik: /acc [nominal]",
         )
         return {"status": "nominal_required"}
 
@@ -183,18 +183,18 @@ async def _handle_acc(
     # Notify Member
     months_str = ", ".join(months_list) if months_list else "Belum mencukupi 1 bulan (masuk saldo)"
     member_msg = (
-        f"✅ *PEMBAYARAN KAS DISETUJUI!*\n\n"
+        f"*PEMBAYARAN KAS DITERIMA*\n\n"
         f"Halo {member['name']},\n"
-        f"Pembayaran kas Anda sebesar *Rp {final_nominal:,}* telah diverifikasi oleh bendahara.\n\n"
-        f"📋 *Bulan Terbayar:* {months_str}\n"
-        f"💳 *Sisa Saldo Kas:* Rp {alloc_result.balance_after:,}\n\n"
-        f"Terima kasih atas kontribusinya untuk WRI! ✨"
+        f"Pembayaran kas Rp {final_nominal:,} telah diverifikasi bendahara.\n\n"
+        f"Bulan terbayar: {months_str}\n"
+        f"Sisa saldo: Rp {alloc_result.balance_after:,}\n\n"
+        f"Terima kasih."
     )
     await evo.send_text(recipient=member["phone_number"], text=member_msg)
 
     # Confirm to Treasurer
     treasurer_msg = (
-        f"✅ Transaksi #{tx_id} ({member['name']}) berhasil di-acc.\n"
+        f"Transaksi #{tx_id} ({member['name']}) berhasil di-acc.\n"
         f"Nominal: Rp {final_nominal:,}\n"
         f"Bulan terisi: {months_str}\n"
         f"Sisa saldo: Rp {alloc_result.balance_after:,}"
@@ -239,14 +239,14 @@ async def _handle_reject(
     if not tx:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text="❌ Tidak ada transaksi PENDING yang ditemukan untuk ditolak.",
+            text="Tidak ada transaksi PENDING yang ditemukan untuk ditolak.",
         )
         return {"status": "not_found", "detail": "Transaksi tidak ditemukan"}
 
     if tx["status"] in ("APPROVED", "ROLLED_BACK", "REJECTED"):
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text=f"⚠️ Transaksi #{tx['id']} sudah diproses sebelumnya (Status: {tx['status']}).",
+            text=f"Transaksi #{tx['id']} sudah diproses sebelumnya (Status: {tx['status']}).",
         )
         return {
             "status": "error",
@@ -262,15 +262,15 @@ async def _handle_reject(
         tx_repo.reject(tx_id=tx_id, reason=reason, approved_by=settings.bendahara_jid)
 
     member_msg = (
-        f"❌ *BUKTI KAS DITOLAK*\n\n"
+        f"*BUKTI KAS DITOLAK*\n\n"
         f"Halo {member['name']},\n"
-        f"Bukti pembayaran kas Anda belum dapat disetujui oleh bendahara.\n\n"
-        f"📝 *Alasan:* {reason}\n\n"
-        f"Silakan upload ulang foto bukti transfer yang jelas dan valid. Terima kasih! 🙏"
+        f"Bukti pembayaran kas belum disetujui bendahara.\n\n"
+        f"Alasan: {reason}\n\n"
+        f"Silakan upload ulang foto bukti transfer yang jelas."
     )
     await evo.send_text(recipient=member["phone_number"], text=member_msg)
 
-    treasurer_msg = f"❌ Transaksi #{tx_id} ({member['name']}) telah ditolak.\nAlasan: {reason}"
+    treasurer_msg = f"Transaksi #{tx_id} ({member['name']}) ditolak.\nAlasan: {reason}"
     await evo.send_text(recipient=settings.bendahara_jid, text=treasurer_msg)
     return {"status": "rejected", "transaction_id": tx_id, "reason": reason}
 
@@ -356,17 +356,17 @@ async def _handle_cash(
 
     months_str = ", ".join(months_list) if months_list else "Masuk saldo simpanan"
     member_msg = (
-        f"💵 *KWITANSI PEMBAYARAN TUNAI (CASH)*\n\n"
+        f"*KWITANSI PEMBAYARAN TUNAI*\n\n"
         f"Halo {member['name']},\n"
-        f"Pembayaran kas tunai Anda sebesar *Rp {nominal:,}* telah diterima oleh bendahara.\n\n"
-        f"📋 *Bulan Terisi:* {months_str}\n"
-        f"💳 *Sisa Saldo:* Rp {alloc_result.balance_after:,}\n\n"
-        f"Terima kasih! ✨"
+        f"Pembayaran kas tunai Rp {nominal:,} telah diterima bendahara.\n\n"
+        f"Bulan terisi: {months_str}\n"
+        f"Sisa saldo: Rp {alloc_result.balance_after:,}\n\n"
+        f"Terima kasih."
     )
     await evo.send_text(recipient=member["phone_number"], text=member_msg)
 
     treasurer_msg = (
-        f"✅ Pembayaran tunai #{tx_id} ({member['name']}) berhasil dicatat.\n"
+        f"Pembayaran tunai #{tx_id} ({member['name']}) berhasil dicatat.\n"
         f"Nominal: Rp {nominal:,}\n"
         f"Bulan terisi: {months_str}\n"
         f"Sisa saldo: Rp {alloc_result.balance_after:,}"
@@ -409,7 +409,7 @@ async def _handle_undo(
         )
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text=f"❌ {detail_msg}.",
+            text=f"{detail_msg}.",
         )
         return {"status": "error", "detail": detail_msg}
 
@@ -419,7 +419,7 @@ async def _handle_undo(
     if not result.success:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text=f"⚠️ Gagal undo transaksi #{tx['id']}: {result.message}",
+            text=f"Gagal undo transaksi #{tx['id']}: {result.message}",
         )
         return {"status": "undo_failed", "error": result.message}
 
@@ -432,7 +432,7 @@ async def _handle_undo(
     reopened_str = ", ".join(reopened_names) if reopened_names else "Tidak ada bulan (hanya saldo)"
 
     member_msg = (
-        f"⚠️ *PEMBATALAN TRANSAKSI KAS*\n\n"
+        f"*PEMBATALAN TRANSAKSI KAS*\n\n"
         f"Halo {member['name']},\n"
         f"Transaksi pembayaran kas sebesar Rp {tx['amount_paid']:,} "
         f"telah dibatalkan (/undo) oleh bendahara.\n"
@@ -441,7 +441,7 @@ async def _handle_undo(
     await evo.send_text(recipient=member["phone_number"], text=member_msg)
 
     treasurer_msg = (
-        f"✅ Transaksi #{tx['id']} berhasil di-undo.\n"
+        f"Transaksi #{tx['id']} berhasil di-undo.\n"
         f"Saldo {member['name']} dikembalikan ke Rp {result.restored_balance:,}.\n"
         f"Bulan dibuka kembali: {reopened_str}."
     )
@@ -503,7 +503,7 @@ async def _handle_koreksi(
     if not tx:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text="❌ Tidak ada transaksi APPROVED yang ditemukan untuk dikoreksi.",
+            text="Tidak ada transaksi APPROVED yang ditemukan untuk dikoreksi.",
         )
         return {"status": "not_found"}
 
@@ -520,7 +520,7 @@ async def _handle_koreksi(
     if not result.success:
         await evo.send_text(
             recipient=settings.bendahara_jid,
-            text=f"⚠️ Gagal koreksi transaksi #{tx['id']}: {result.message}",
+            text=f"Gagal koreksi transaksi #{tx['id']}: {result.message}",
         )
         return {"status": "koreksi_failed", "error": result.message}
 
@@ -533,7 +533,7 @@ async def _handle_koreksi(
     filled_str = ", ".join(filled_names) if filled_names else "Masuk saldo simpanan"
 
     treasurer_msg = (
-        f"✅ Koreksi transaksi #{tx['id']} ({member['name']}) berhasil!\n"
+        f"Koreksi transaksi #{tx['id']} ({member['name']}) berhasil.\n"
         f"Nominal baru: Rp {new_nominal:,}\n"
         f"Bulan terisi baru: {filled_str}\n"
         f"Sisa saldo: Rp {result.new_balance:,}"
@@ -577,7 +577,7 @@ async def _handle_tambah_saldo(
 
     await evo.send_text(
         recipient=settings.bendahara_jid,
-        text=f"✅ Saldo {member['name']} bertambah Rp {amount:,}. Saldo baru: Rp {new_bal:,}.",
+        text=f"Saldo {member['name']} bertambah Rp {amount:,}. Saldo baru: Rp {new_bal:,}.",
     )
     return {"status": "balance_added", "new_balance": new_bal}
 
@@ -616,6 +616,6 @@ async def _handle_set_saldo(
 
     await evo.send_text(
         recipient=settings.bendahara_jid,
-        text=f"✅ Saldo {member['name']} berhasil diatur menjadi Rp {amount:,}.",
+        text=f"Saldo {member['name']} berhasil diatur menjadi Rp {amount:,}.",
     )
     return {"status": "balance_set", "new_balance": amount}
