@@ -335,3 +335,66 @@ class GoogleSheetsClient:
                         }
                     )
         return members
+
+    def fetch_payment_matrix(self) -> dict[str, dict[str, str]]:
+        """Retrieve existing payment records from PENGURUS-2025/2026 sheet.
+
+        Returns mapping of normalized member name -> dict of canonical month name to cell value.
+        e.g. {'mohammad hafidz rafi rabbani': {'Februari': 'Bank Jago', 'Maret': 'Bank Jago'}}
+        """
+        rows = self._get_values(f"{SHEET_PENGURUS_MATRIX}!A1:N60")
+        if not rows or len(rows) < 2:
+            return {}
+
+        headers = [str(c).strip().lower() for c in rows[0]]
+        month_name_map = {
+            "februari": "Februari",
+            "february": "Februari",
+            "maret": "Maret",
+            "march": "Maret",
+            "april": "April",
+            "mei": "Mei",
+            "may": "Mei",
+            "juni": "Juni",
+            "june": "Juni",
+            "juli": "Juli",
+            "july": "Juli",
+            "agustus": "Agustus",
+            "august": "Agustus",
+            "september": "September",
+            "oktober": "Oktober",
+            "october": "Oktober",
+            "november": "November",
+            "desember": "Desember",
+            "december": "Desember",
+        }
+
+        month_col_map: dict[int, str] = {}
+        for idx, h in enumerate(headers):
+            canonical = month_name_map.get(h)
+            if canonical:
+                month_col_map[idx] = canonical
+
+        name_col_idx = 0
+        for idx, h in enumerate(headers):
+            if h in ("nama", "name"):
+                name_col_idx = idx
+                break
+
+        matrix: dict[str, dict[str, str]] = {}
+        for r in rows[1:]:
+            if len(r) > name_col_idx:
+                raw_name = str(r[name_col_idx]).strip()
+                if not raw_name:
+                    continue
+                clean_name = re.sub(r"[^\w\s]", "", raw_name.lower())
+                norm_name = " ".join(clean_name.split())
+
+                payments: dict[str, str] = {}
+                for col_idx, month_name in month_col_map.items():
+                    if len(r) > col_idx:
+                        val = str(r[col_idx]).strip()
+                        if val:
+                            payments[month_name] = val
+                matrix[norm_name] = payments
+        return matrix

@@ -7,6 +7,7 @@ events with automatic validation and handler dispatching.
 import asyncio
 import logging
 import random
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -21,6 +22,9 @@ from wri_kas_bot.handlers.treasurer_handler import handle_treasurer
 from wri_kas_bot.models import WebhookPayload
 
 logger = logging.getLogger(__name__)
+
+_PROCESSED_MESSAGE_IDS: dict[str, float] = {}
+_DEDUP_TTL_SECONDS = 120.0
 
 
 @asynccontextmanager
@@ -123,6 +127,22 @@ async def webhook_handler(request: Request) -> JSONResponse:
     # 2. Ignore WhatsApp Groups
     if payload.is_group:
         return JSONResponse(status_code=status.HTTP_200_OK, content={"status": "ignored_group"})
+
+    # 3. Webhook idempotency guard (ignore duplicate message deliveries)
+    if payload.message_id:
+        now_ts = time.time()
+        expired = [
+            mid for mid, ts in _PROCESSED_MESSAGE_IDS.items() if now_ts - ts > _DEDUP_TTL_SECONDS
+        ]
+        for mid in expired:
+            _PROCESSED_MESSAGE_IDS.pop(mid, None)
+
+        if payload.message_id in _PROCESSED_MESSAGE_IDS:
+            logger.info("Ignoring duplicate webhook for message_id=%s", payload.message_id)
+            return JSONResponse(
+                status_code=status.HTTP_200_OK, content={"status": "ignored_duplicate"}
+            )
+        _PROCESSED_MESSAGE_IDS[payload.message_id] = now_ts
 
     db = get_db(request)
     evolution = get_evolution(request)

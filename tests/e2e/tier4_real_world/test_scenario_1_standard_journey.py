@@ -83,4 +83,6 @@ async def test_scenario_1_alice_pays_three_months(
     status_res = await handle_member(status_payload, db=db, evolution=evo)
     assert status_res["status"] == "ok"
     assert status_res["unpaid_count"] == 8
-    assert status_res["net_bill"] == 80000
+    assert status_res["overdue_count"] == 6
+    assert status_res["future_count"] == 2
+    assert status_res["net_bill"] == 60000

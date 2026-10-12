@@ -64,8 +64,8 @@ async def test_flow_member_status_reflects_approval_and_paid_months(
 
     await handle_member(_make_payload("/status", "6281100000001"), db=db, evolution=evo)
     msg_text = evo.send_text.call_args.kwargs["text"]
-    assert "Lunas semua!" in msg_text
-    assert "*Total Tagihan Bersih:* Rp 0" in msg_text
+    assert "Lunas sampai bulan ini!" in msg_text
+    assert "*Total Tagihan Jatuh Tempo:* Rp 0" in msg_text
 
 
 @pytest.mark.asyncio
@@ -87,5 +87,5 @@ async def test_flow_member_status_reflects_undo_rollback(initialized_db, mock_ev
     # Check status
     await handle_member(_make_payload("/status", "6281100000001"), db=db, evolution=evo)
     msg_text = evo.send_text.call_args.kwargs["text"]
-    assert "11 bln" in msg_text
-    assert "*Total Tagihan Bersih:* Rp 110,000" in msg_text
+    assert "9 bln" in msg_text
+    assert "*Total Tagihan Jatuh Tempo:* Rp 90,000" in msg_text

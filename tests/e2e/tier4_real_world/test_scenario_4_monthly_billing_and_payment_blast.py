@@ -73,4 +73,6 @@ async def test_scenario_4_monthly_billing_cycle(
     )
     assert status_res["status"] == "ok"
     assert status_res["unpaid_count"] == 9
-    assert status_res["net_bill"] == 90000
+    assert status_res["overdue_count"] == 7
+    assert status_res["future_count"] == 2
+    assert status_res["net_bill"] == 70000

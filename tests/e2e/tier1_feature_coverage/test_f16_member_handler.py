@@ -44,13 +44,17 @@ async def test_member_status_command(initialized_db, mock_evolution_api):
 
     assert res["status"] == "ok"
     assert res["unpaid_count"] == 11  # Feb-Dec 2026
-    assert res["net_bill"] == 110000
+    assert res["overdue_count"] == 9  # Feb-Oct 2026
+    assert res["future_count"] == 2  # Nov-Dec 2026
+    assert res["net_bill"] == 90000
 
     evo.send_text.assert_awaited_once()
     msg_text = evo.send_text.call_args.kwargs["text"]
     assert "STATUS KAS WRI" in msg_text
     assert "Alice" in msg_text
-    assert "Rp 110,000" in msg_text
+    assert "Rp 90,000" in msg_text
+    assert "Tunggakan Jatuh Tempo" in msg_text
+    assert "Bulan Mendatang" in msg_text
 
 
 @pytest.mark.asyncio

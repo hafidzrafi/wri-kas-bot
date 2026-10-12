@@ -82,4 +82,6 @@ async def test_scenario_3_charlie_cash_and_undo(
     )
     assert status_res["status"] == "ok"
     assert status_res["unpaid_count"] == 11
-    assert status_res["net_bill"] == 110000
+    assert status_res["overdue_count"] == 9
+    assert status_res["future_count"] == 2
+    assert status_res["net_bill"] == 90000

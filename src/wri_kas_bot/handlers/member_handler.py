@@ -4,6 +4,7 @@ Handles member commands including /status (checking dues and balance),
 /bayar (retrieving payment bank details and QRIS), and /help.
 """
 
+import datetime
 import logging
 from typing import Any
 
@@ -78,8 +79,6 @@ async def _handle_status(
 
         paid_dues = dues_repo.get_paid(member_id, year=2026)
         unpaid_dues = dues_repo.get_unpaid(member_id, year=2026)
-        paid_months = [d.month for d in paid_dues]
-        unpaid_months = [d.month for d in unpaid_dues]
 
         # Check for pending transaction awaiting verification
         pending_txs = conn.execute(
@@ -89,13 +88,40 @@ async def _handle_status(
         ).fetchall()
         pending_tx = pending_txs[0] if pending_txs else None
 
-    unpaid_count = len(unpaid_months)
+    today = datetime.date.today()
+    current_year = today.year
+    current_month_index = today.month
+
+    # Dues tracking year: 2026
+    if current_year > 2026:
+        overdue_dues = unpaid_dues
+        future_dues = []
+    elif current_year < 2026:
+        overdue_dues = []
+        future_dues = unpaid_dues
+    else:
+        overdue_dues = [d for d in unpaid_dues if d.month_index <= current_month_index]
+        future_dues = [d for d in unpaid_dues if d.month_index > current_month_index]
+
+    overdue_count = len(overdue_dues)
+    future_count = len(future_dues)
     due_per_month = settings.due_amount_per_month
     balance = member["balance"]
-    net_bill = max(0, (unpaid_count * due_per_month) - balance)
+    net_bill = max(0, (overdue_count * due_per_month) - balance)
 
-    paid_str = ", ".join(paid_months) if paid_months else "Belum ada"
-    unpaid_str = ", ".join(unpaid_months) if unpaid_months else "Lunas semua! 🎉"
+    paid_months = [d.month for d in paid_dues]
+    paid_count = len(paid_months)
+    paid_str = f"{', '.join(paid_months)} ({paid_count} bln)" if paid_count > 0 else "Belum ada"
+
+    if overdue_count > 0:
+        overdue_str = f"{', '.join(d.month for d in overdue_dues)} ({overdue_count} bln)"
+    else:
+        overdue_str = "Nihil (Lunas sampai bulan ini! 🎉)"
+
+    if future_count > 0:
+        future_str = f"{', '.join(d.month for d in future_dues)} ({future_count} bln)"
+    else:
+        future_str = "Nihil"
 
     pending_notice = ""
     if pending_tx:
@@ -111,14 +137,21 @@ async def _handle_status(
         f"📞 *No HP:* {member['phone_number']}\n"
         f"💳 *Saldo Kas Simpanan:* Rp {balance:,}\n\n"
         f"✅ *Bulan Lunas:* {paid_str}\n"
-        f"📋 *Tunggakan:* {unpaid_str} ({unpaid_count} bln)\n"
-        f"💰 *Total Tagihan Bersih:* Rp {net_bill:,}"
+        f"📋 *Tunggakan Jatuh Tempo:* {overdue_str}\n"
+        f"💰 *Total Tagihan Jatuh Tempo:* Rp {net_bill:,}\n"
+        f"⏳ *Bulan Mendatang:* {future_str}"
         f"{pending_notice}\n\n"
         f"Ketik */bayar* untuk melihat info rekening dan QRIS."
     )
 
     await evo.send_text(recipient=sender_jid, text=msg)
-    return {"status": "ok", "unpaid_count": unpaid_count, "net_bill": net_bill}
+    return {
+        "status": "ok",
+        "overdue_count": overdue_count,
+        "future_count": future_count,
+        "unpaid_count": len(unpaid_dues),
+        "net_bill": net_bill,
+    }
 
 
 async def _handle_bayar(
@@ -134,13 +167,33 @@ async def _handle_bayar(
         dues_repo = MonthlyDuesRepository(conn)
         unpaid = dues_repo.get_unpaid(member_id, year=2026)
 
-    unpaid_count = len(unpaid)
+    today = datetime.date.today()
+    current_year = today.year
+    current_month_index = today.month
+
+    if current_year > 2026:
+        overdue_dues = unpaid
+    elif current_year < 2026:
+        overdue_dues = []
+    else:
+        overdue_dues = [d for d in unpaid if d.month_index <= current_month_index]
+
+    overdue_count = len(overdue_dues)
     balance = member["balance"]
-    net_bill = max(0, (unpaid_count * settings.due_amount_per_month) - balance)
+    net_bill = max(0, (overdue_count * settings.due_amount_per_month) - balance)
+
+    if net_bill > 0:
+        bill_section = f"Tagihan jatuh tempo Anda saat ini: *Rp {net_bill:,}*\n\n"
+    else:
+        fee = settings.due_amount_per_month
+        bill_section = (
+            f"Anda tidak memiliki tunggakan jatuh tempo saat ini (Saldo kas: Rp {balance:,}).\n"
+            f"Jika ingin membayar kas bulan mendatang, kas per bulan adalah *Rp {fee:,}*.\n\n"
+        )
 
     msg = (
         f"💳 *PEMBAYARAN KAS WRI*\n\n"
-        f"Tagihan Anda saat ini: *Rp {net_bill:,}*\n\n"
+        f"{bill_section}"
         f"Silakan transfer ke salah satu rekening resmi WRI:\n\n"
         f"🏦 *Bank Jago*\n"
         f"• No. Rekening: *{settings.bank_account_number}*\n"

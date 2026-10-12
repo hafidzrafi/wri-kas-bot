@@ -379,6 +379,25 @@ class MonthlyDuesRepository:
         )
         return reverted
 
+    def mark_paid_by_month(
+        self,
+        member_id: int,
+        year: int,
+        month_index: int,
+        payment_method: str = "Bank Jago",
+        proof_url: str = "",
+    ) -> None:
+        """Mark a member's specific monthly due as PAID during synchronization."""
+        self.conn.execute(
+            """
+            UPDATE monthly_dues
+            SET status = 'PAID', payment_method = ?, proof_url = ?,
+                paid_at = COALESCE(paid_at, CURRENT_TIMESTAMP)
+            WHERE member_id = ? AND year = ? AND month_index = ?
+            """,
+            (payment_method, proof_url, member_id, year, month_index),
+        )
+
 
 MonthlyDueRepository = MonthlyDuesRepository
 

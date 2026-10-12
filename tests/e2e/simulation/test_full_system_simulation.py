@@ -230,11 +230,14 @@ async def test_sim_06_member_status_command(
     res = await handle_member(payload, db=db, evolution=evo)
     assert res["status"] == "ok"
     assert res["unpaid_count"] == 11
-    assert res["net_bill"] == 110000
+    assert res["overdue_count"] == 9
+    assert res["future_count"] == 2
+    assert res["net_bill"] == 90000
     assert evo.send_text.called
     body = evo.send_text.call_args[1]["text"]
     assert "Februari" in body
     assert "Desember" in body
+    assert "Tunggakan Jatuh Tempo" in body
 
 
 # Feature 7 & 8: Receipt Ingestion, Gemini OCR & Treasurer Notification Card
