@@ -202,3 +202,49 @@ async def test_webhook_deduplication_idempotency(test_db):
         resp2 = await client.post("/webhook", json=payload_data)
         assert resp2.status_code == 200
         assert resp2.json()["status"] == "ignored_duplicate"
+
+
+@pytest.mark.asyncio
+async def test_member_bayar_dispatches_qris_image(test_db, monkeypatch):
+    """Verify /bayar sends QRIS image with caption when image is available."""
+    import wri_kas_bot.handlers.member_handler as mh
+
+    monkeypatch.setattr(mh, "_CACHED_QRIS_BASE64", "MOCK_BASE64_QRIS_BYTES")
+
+    evo = EvolutionClient()
+    evo.send_image_base64 = AsyncMock(return_value="RESP_IMG_001")
+    evo.send_text = AsyncMock(return_value="RESP_TEXT_001")
+
+    payload = _make_payload("/bayar", phone="6281100000001")
+    res = await handle_member(payload, db=test_db, evolution=evo)
+
+    assert res["status"] == "ok"
+    assert res["media"] == "image"
+    evo.send_image_base64.assert_awaited_once()
+    caption = evo.send_image_base64.call_args.kwargs["caption"]
+    assert "PEMBAYARAN KAS WRI" in caption
+    assert "Bank Jago" in caption
+    assert "Scan kode QR pada gambar di atas" in caption
+    evo.send_text.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_member_bayar_fallbacks_to_text(test_db, monkeypatch):
+    """Verify /bayar gracefully fallbacks to send_text if QRIS image is unavailable."""
+    import wri_kas_bot.handlers.member_handler as mh
+
+    monkeypatch.setattr(mh, "_CACHED_QRIS_BASE64", None)
+
+    evo = EvolutionClient()
+    evo.send_image_base64 = AsyncMock(side_effect=RuntimeError("Evolution media failure"))
+    evo.send_text = AsyncMock(return_value="RESP_TEXT_002")
+
+    payload = _make_payload("/bayar", phone="6281100000001")
+    res = await handle_member(payload, db=test_db, evolution=evo)
+
+    assert res["status"] == "ok"
+    assert res["media"] == "text"
+    evo.send_text.assert_awaited_once()
+    msg = evo.send_text.call_args.kwargs["text"]
+    assert "PEMBAYARAN KAS WRI" in msg
+    assert "Bank Jago" in msg

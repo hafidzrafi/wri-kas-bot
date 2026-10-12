@@ -4,9 +4,13 @@ Handles member commands including /status (checking dues and balance),
 /bayar (retrieving payment bank details and QRIS), and /help.
 """
 
+import base64
 import datetime
 import logging
+from pathlib import Path
 from typing import Any
+
+import httpx
 
 from wri_kas_bot.config import get_settings
 from wri_kas_bot.database import Database
@@ -15,6 +19,45 @@ from wri_kas_bot.models import WebhookPayload
 from wri_kas_bot.repository import MemberRepository, MonthlyDuesRepository
 
 logger = logging.getLogger(__name__)
+
+_CACHED_QRIS_BASE64: str | None = None
+
+
+async def load_qris_image_base64(settings: Any) -> str | None:
+    """Retrieve base64-encoded QRIS image from cache, local file, or remote URL."""
+    global _CACHED_QRIS_BASE64
+    if _CACHED_QRIS_BASE64:
+        return _CACHED_QRIS_BASE64
+
+    # Check local disk cache
+    for local_path in (Path("data/qris.jpg"), Path("data/qris.png")):
+        if local_path.is_file() and local_path.stat().st_size > 100:
+            try:
+                data = local_path.read_bytes()
+                _CACHED_QRIS_BASE64 = base64.b64encode(data).decode("utf-8")
+                return _CACHED_QRIS_BASE64
+            except Exception as exc:
+                logger.warning("Failed reading local QRIS file %s: %s", local_path, exc)
+
+    url = getattr(settings, "qris_file_url", None)
+    # Skip dummy example URLs during automated tests
+    if url and "example.com" not in url and url.startswith(("http://", "https://")):
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200 and len(resp.content) > 100:
+                    _CACHED_QRIS_BASE64 = base64.b64encode(resp.content).decode("utf-8")
+                    try:
+                        qris_dest = Path("data/qris.jpg")
+                        qris_dest.parent.mkdir(parents=True, exist_ok=True)
+                        qris_dest.write_bytes(resp.content)
+                    except Exception as err:
+                        logger.debug("Could not cache QRIS to disk: %s", err)
+                    return _CACHED_QRIS_BASE64
+        except Exception as exc:
+            logger.warning("Failed downloading QRIS image from %s: %s", url, exc)
+
+    return None
 
 
 async def handle_member(
@@ -191,6 +234,33 @@ async def _handle_bayar(
             f"Jika ingin membayar kas bulan mendatang, kas per bulan adalah *Rp {fee:,}*.\n\n"
         )
 
+    # Attempt to dispatch official QRIS image with caption
+    qris_b64 = await load_qris_image_base64(settings)
+    if qris_b64:
+        caption = (
+            f"💳 *PEMBAYARAN KAS WRI*\n\n"
+            f"{bill_section}"
+            f"Silakan transfer ke salah satu rekening resmi WRI:\n\n"
+            f"🏦 *Bank Jago*\n"
+            f"• No. Rekening: *{settings.bank_account_number}*\n"
+            f"• Atas Nama: *{settings.bank_account_holder}*\n\n"
+            f"📱 *QRIS All Payment:*\n"
+            f"(Scan kode QR pada gambar di atas)\n\n"
+            f"📌 *Penting:* Setelah transfer berhasil, silakan langsung kirimkan "
+            f"*FOTO / SCREENSHOT BUKTI TRANSFER* ke nomor bot ini. "
+            f"Sistem AI akan otomatis membaca nominal dan meneruskan ke bendahara!"
+        )
+        try:
+            await evo.send_image_base64(
+                jid=sender_jid,
+                image_base64=qris_b64,
+                caption=caption,
+            )
+            return {"status": "ok", "net_bill": net_bill, "media": "image"}
+        except Exception as exc:
+            logger.warning("Failed sending QRIS image: %s, falling back to text", exc)
+
+    # Fallback to plain text message
     msg = (
         f"💳 *PEMBAYARAN KAS WRI*\n\n"
         f"{bill_section}"
@@ -206,7 +276,7 @@ async def _handle_bayar(
     )
 
     await evo.send_text(recipient=sender_jid, text=msg)
-    return {"status": "ok", "net_bill": net_bill}
+    return {"status": "ok", "net_bill": net_bill, "media": "text"}
 
 
 async def _handle_help(evo: EvolutionClient, sender_jid: str) -> dict[str, Any]:
