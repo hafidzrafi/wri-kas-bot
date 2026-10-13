@@ -163,3 +163,39 @@ async def test_receipt_handler_forwards_card_to_treasurer(
     call_kwargs = evo.send_media.call_args.kwargs
     assert "/acc" in call_kwargs["caption"]
     assert "6281100000099" in call_kwargs["recipient"]
+
+
+@pytest.mark.asyncio
+async def test_receipt_handler_overdue_months_filtered_to_calendar_month(
+    initialized_db, tmp_path, monkeypatch, mock_evolution_api
+):
+    """Verify treasurer card calculates overdue months up to current calendar month."""
+    monkeypatch.setenv("RECEIPTS_DIR", str(tmp_path / "receipts"))
+    db = Database(initialized_db)
+
+    # Mark months 2 through 9 (Feb-Sep) as PAID for member 1
+    with db.connect() as conn:
+        conn.execute(
+            """
+            UPDATE monthly_dues SET status = 'PAID'
+            WHERE member_id = 1 AND year = 2026 AND month_index BETWEEN 2 AND 9
+            """
+        )
+
+    payload = _make_receipt_payload()
+    mock_ocr = AsyncMock(spec=ReceiptOCR)
+    mock_ocr.extract_receipt.return_value = OCRResult(
+        nominal=10000, bank="Bank Jago", raw_text="Rp 10.000"
+    )
+
+    evo = EvolutionClient()
+    evo.send_text = AsyncMock(return_value={"key": {"id": "ACK_MSG_ID"}})
+    evo.send_media = AsyncMock(return_value={"key": {"id": "TREASURER_NOTIF_ID"}})
+
+    await handle_receipt(payload, db=db, evolution=evo, ocr_engine=mock_ocr)
+
+    call_kwargs = evo.send_media.call_args.kwargs
+    caption = call_kwargs["caption"]
+    # In October 2026, only October is overdue (1 bln, 10k), Nov & Dec are not overdue!
+    assert "Tunggakan: Oktober (1 bln)" in caption
+    assert "Tagihan: Rp 10,000" in caption

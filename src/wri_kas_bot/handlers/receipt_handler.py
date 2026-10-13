@@ -6,6 +6,7 @@ base64 verification cards to the treasurer.
 """
 
 import base64
+import datetime
 import logging
 from pathlib import Path
 from typing import Any
@@ -124,12 +125,31 @@ async def handle_receipt(
     await evo.send_text(recipient=sender_jid, text=ack_msg)
 
     # 7. Forward Verification Card to Treasurer
-    unpaid_months = [u["month"] for u in unpaid]
-    unpaid_count = len(unpaid_months)
-    unpaid_str = ", ".join(unpaid_months) if unpaid_months else "Tidak ada"
+    today = datetime.date.today()
+    current_year = today.year
+    current_month_index = today.month
+
+    if current_year > 2026:
+        overdue_dues = unpaid
+    elif current_year < 2026:
+        overdue_dues = []
+    else:
+        overdue_dues = [
+            d
+            for d in unpaid
+            if (d["month_index"] if isinstance(d, dict) else d.month_index) <= current_month_index
+        ]
+
+    overdue_months = [(d["month"] if isinstance(d, dict) else d.month) for d in overdue_dues]
+    overdue_count = len(overdue_months)
+    if overdue_count > 0:
+        overdue_str = f"{', '.join(overdue_months)} ({overdue_count} bln)"
+    else:
+        overdue_str = "Nihil (Lunas s/d bulan ini)"
+
     due_per_month = settings.due_amount_per_month
     balance = member["balance"]
-    net_due = max(0, (unpaid_count * due_per_month) - balance)
+    net_due = max(0, (overdue_count * due_per_month) - balance)
 
     ocr_display = f"Rp {ocr_amount:,}" if ocr_amount else "Tidak terbaca (Isi manual)"
     bank_display = ocr_bank or "Bank/E-Wallet"
@@ -139,7 +159,7 @@ async def handle_receipt(
         f"Nama: {member['name']}\n"
         f"No: {member['phone_number']}\n"
         f"Saldo: Rp {balance:,}\n"
-        f"Tunggakan: {unpaid_str} ({unpaid_count} bln)\n"
+        f"Tunggakan: {overdue_str}\n"
         f"Tagihan: Rp {net_due:,}\n\n"
         f"Nominal terbaca: {ocr_display} ({bank_display})\n\n"
         f"Balas pesan ini:\n"
