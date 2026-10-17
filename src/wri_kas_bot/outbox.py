@@ -76,28 +76,39 @@ class OutboxWorker:
         try:
             # 2. Drive Archival for Non-Cash Receipts (External HTTP - No DB lock held)
             if payment_method != "CASH" and not proof_drive_url and local_image_path:
-                try:
-                    img_path = Path(local_image_path)
-                    if img_path.is_file():
-                        img_bytes = img_path.read_bytes()
-                        filename = format_drive_filename(
-                            member_phone,
-                            member_name,
-                            created_at or "20261011",
-                        )
-                        proof_drive_url = self.drive_client.upload_file(img_bytes, filename)
-                        with self.db.transaction() as conn:
-                            conn.execute(
-                                "UPDATE transactions SET proof_drive_url = ? WHERE id = ?",
-                                (proof_drive_url, tx_id),
-                            )
-                except Exception as drive_exc:
-                    logger.warning(
-                        "Drive receipt archival failed for transaction #%d: %s. "
-                        "Proceeding with Sheets sync.",
-                        tx_id,
-                        drive_exc,
+                img_path = Path(local_image_path)
+                if img_path.is_file():
+                    img_bytes = img_path.read_bytes()
+                    filename = format_drive_filename(
+                        member_phone,
+                        member_name,
+                        created_at or "20261011",
                     )
+                    drive_upload_err: Exception | None = None
+                    for attempt in range(1, 4):
+                        try:
+                            proof_drive_url = self.drive_client.upload_file(img_bytes, filename)
+                            with self.db.transaction() as conn:
+                                conn.execute(
+                                    "UPDATE transactions SET proof_drive_url = ? WHERE id = ?",
+                                    (proof_drive_url, tx_id),
+                                )
+                            drive_upload_err = None
+                            break
+                        except Exception as d_err:
+                            drive_upload_err = d_err
+                            logger.warning(
+                                "Drive upload attempt %d failed for tx #%d: %s",
+                                attempt,
+                                tx_id,
+                                d_err,
+                            )
+                            if attempt < 3:
+                                await asyncio.sleep(0.1 * attempt)
+                    if drive_upload_err is not None:
+                        raise RuntimeError(
+                            f"Drive receipt archival failed after 3 attempts: {drive_upload_err}"
+                        )
 
             dues_cell_val = "Tunai" if payment_method == "CASH" else "Bank Jago"
             bukti_url_val = "Tunai" if payment_method == "CASH" else (proof_drive_url or "")
@@ -202,6 +213,33 @@ class OutboxWorker:
                 logger.info("Successfully reverse-synced reverted transaction #%d", tx_id)
                 return True
 
+            # 5. Log-only Sync for Rejected Transactions
+            elif tx_status == "REJECTED":
+                rejection_reason = tx.get("rejection_reason") or "Bukti ditolak"
+                log_data = {
+                    "Id": tx["id"],
+                    "Timestamp": updated_at or created_at,
+                    "Nama": member_name,
+                    "Nomor HP": member_phone,
+                    "Nominal": 0,
+                    "Bulan Terisi": "-",
+                    "Sisa Saldo": balance_after,
+                    "Status": "REJECTED",
+                    "Bukti URL": bukti_url_val,
+                    "Approved By": approved_by or "Bendahara",
+                    "Keterangan": f"Ditolak: {rejection_reason}",
+                }
+                self.sheets_client.append_log_transaksi(log_data)
+
+                with self.db.transaction() as conn:
+                    conn.execute(
+                        "UPDATE transactions SET sync_status = 'SYNCED', sync_error = NULL, "
+                        "updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                        (tx_id,),
+                    )
+                logger.info("Successfully synced rejected transaction #%d to Sheets log", tx_id)
+                return True
+
         except Exception as exc:
             err_msg = str(exc)
             logger.error("Failed to sync transaction #%d: %s", tx_id, err_msg)
@@ -220,7 +258,7 @@ class OutboxWorker:
         with self.db.connect() as conn:
             cursor = conn.execute(
                 "SELECT id FROM transactions WHERE sync_status = 'PENDING' "
-                "AND status IN ('APPROVED', 'REVERTED') ORDER BY id ASC"
+                "AND status IN ('APPROVED', 'REVERTED', 'REJECTED') ORDER BY id ASC"
             )
             rows = cursor.fetchall()
             tx_ids = [r[0] for r in rows]

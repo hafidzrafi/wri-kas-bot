@@ -403,11 +403,23 @@ class CommandType(StrEnum):
 
 
 def parse_amount(text: str) -> int | None:
-    """Extract integer amount from string, stripping dots, commas, currency symbols, and cents."""
+    """Extract integer amount from string.
+
+    Supports 'k', 'rb', 'ribu' multipliers and strips decimal cents.
+    """
     if not text:
         return None
+    raw = text.strip().lower()
+    match_k = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:k|rb|ribu)\b", raw)
+    if match_k:
+        num_part = match_k.group(1).replace(",", ".")
+        try:
+            return int(float(num_part) * 1000)
+        except ValueError:
+            pass
+
     # Strip decimal cents: ,00 or ,50 (Indonesian) or .00 (English 2-digit cents)
-    cleaned = re.sub(r"[,.]\d{2}(?=\s|$|[^\d])", "", text.strip())
+    cleaned = re.sub(r"[,.]\d{2}(?=\s|$|[^\d])", "", raw)
     digits = re.sub(r"[^\d]", "", cleaned)
     return int(digits) if digits else None
 

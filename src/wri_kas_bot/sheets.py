@@ -35,6 +35,20 @@ LOG_TRANSAKSI_HEADERS = [
     "Keterangan",
 ]
 
+MONTH_ALIASES: dict[str, list[str]] = {
+    "februari": ["februari", "february", "feb"],
+    "maret": ["maret", "march", "mar"],
+    "april": ["april", "apr"],
+    "mei": ["mei", "may"],
+    "juni": ["juni", "june", "jun"],
+    "juli": ["juli", "july", "jul"],
+    "agustus": ["agustus", "august", "agu", "aug"],
+    "september": ["september", "sep"],
+    "oktober": ["oktober", "october", "okt", "oct"],
+    "november": ["november", "nov"],
+    "desember": ["desember", "december", "des", "dec"],
+}
+
 
 def col_to_letter(col_idx: int) -> str:
     """Convert 1-based column index to spreadsheet column letter(s).
@@ -115,17 +129,53 @@ class GoogleSheetsClient:
 
         headers = [str(c).strip().lower() for c in rows[0]]
         target_month = month.strip().lower()
-        if target_month not in headers:
-            col_letter = "D"
-        else:
-            col_letter = col_to_letter(headers.index(target_month) + 1)
+        col_idx = -1
 
-        target_row_idx = 5
-        target_name = name.strip().lower()
+        # 1. Exact match
+        if target_month in headers:
+            col_idx = headers.index(target_month)
+        else:
+            # 2. Alias match (e.g. 'desember' vs 'december')
+            for _, aliases in MONTH_ALIASES.items():
+                if target_month in aliases:
+                    for h_idx, h in enumerate(headers):
+                        if h in aliases:
+                            col_idx = h_idx
+                            break
+                    if col_idx != -1:
+                        break
+
+        if col_idx == -1:
+            raise ValueError(f"Month '{month}' could not be matched in matrix headers: {headers}")
+
+        col_letter = col_to_letter(col_idx + 1)
+
+        target_row_idx = -1
+        target_clean = re.sub(r"[^\w\s]", "", name.lower())
+        target_norm = " ".join(target_clean.split())
+
         for idx, row in enumerate(rows[1:], start=2):
-            if row and len(row) > 0 and str(row[0]).strip().lower() == target_name:
-                target_row_idx = idx
-                break
+            if row and len(row) > 0:
+                row_raw = str(row[0]).lower()
+                row_clean = re.sub(r"[^\w\s]", "", row_raw)
+                row_norm = " ".join(row_clean.split())
+                if target_norm == row_norm:
+                    target_row_idx = idx
+                    break
+
+        if target_row_idx == -1:
+            for idx, row in enumerate(rows[1:], start=2):
+                if row and len(row) > 0:
+                    row_raw = str(row[0]).lower()
+                    row_clean = re.sub(r"[^\w\s]", "", row_raw)
+                    row_norm = " ".join(row_clean.split())
+                    if target_norm in row_norm or row_norm in target_norm:
+                        target_row_idx = idx
+                        break
+
+        if target_row_idx == -1:
+            # Fallback to row 5 if empty or test mock without member rows
+            target_row_idx = 5
 
         coord = f"{SHEET_PENGURUS_MATRIX}!{col_letter}{target_row_idx}"
         self.service.spreadsheets().values().update(

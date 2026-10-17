@@ -508,29 +508,56 @@ class TransactionRepository:
         months_filled: list[Any],
         approved_by: str,
         sheets_cells_filled: list[Any] | None = None,
+        amount_paid: int | None = None,
     ) -> None:
-        self.conn.execute(
-            """
-            UPDATE transactions SET
-                status = 'APPROVED',
-                balance_before = ?,
-                balance_after = ?,
-                months_filled = ?,
-                approved_by = ?,
-                sheets_cells_filled = ?,
-                sync_status = 'PENDING',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            """,
-            (
-                balance_before,
-                balance_after,
-                json.dumps(months_filled),
-                approved_by,
-                json.dumps(sheets_cells_filled or []),
-                tx_id,
-            ),
-        )
+        if amount_paid is not None:
+            self.conn.execute(
+                """
+                UPDATE transactions SET
+                    status = 'APPROVED',
+                    amount_paid = ?,
+                    balance_before = ?,
+                    balance_after = ?,
+                    months_filled = ?,
+                    approved_by = ?,
+                    sheets_cells_filled = ?,
+                    sync_status = 'PENDING',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    amount_paid,
+                    balance_before,
+                    balance_after,
+                    json.dumps(months_filled),
+                    approved_by,
+                    json.dumps(sheets_cells_filled or []),
+                    tx_id,
+                ),
+            )
+        else:
+            self.conn.execute(
+                """
+                UPDATE transactions SET
+                    status = 'APPROVED',
+                    balance_before = ?,
+                    balance_after = ?,
+                    months_filled = ?,
+                    approved_by = ?,
+                    sheets_cells_filled = ?,
+                    sync_status = 'PENDING',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    balance_before,
+                    balance_after,
+                    json.dumps(months_filled),
+                    approved_by,
+                    json.dumps(sheets_cells_filled or []),
+                    tx_id,
+                ),
+            )
 
     def reject(self, tx_id: int, reason: str, approved_by: str) -> None:
         self.conn.execute(
@@ -539,6 +566,7 @@ class TransactionRepository:
                 status = 'REJECTED',
                 rejection_reason = ?,
                 approved_by = ?,
+                sync_status = 'PENDING',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -578,7 +606,7 @@ class TransactionRepository:
         rows = self.conn.execute(
             """
             SELECT * FROM transactions
-            WHERE sync_status = 'PENDING' AND status IN ('APPROVED', 'REVERTED')
+            WHERE sync_status = 'PENDING' AND status IN ('APPROVED', 'REVERTED', 'REJECTED')
             ORDER BY id ASC LIMIT ?
             """,
             (limit,),

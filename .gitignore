@@ -23,6 +23,7 @@ docs/
 *.md.draft
 scratch/
 .agents/
+.superpowers/
 
 # Python & Tooling Caches
 __pycache__/

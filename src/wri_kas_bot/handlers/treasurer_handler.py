@@ -178,6 +178,7 @@ async def _handle_acc(
             balance_after=alloc_result.balance_after,
             months_filled=months_list,
             approved_by=settings.bendahara_jid,
+            amount_paid=final_nominal,
         )
 
     # Notify Member
